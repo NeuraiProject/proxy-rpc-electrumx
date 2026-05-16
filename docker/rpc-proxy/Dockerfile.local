@@ -1,0 +1,28 @@
+# ── Neurai RPC Proxy (local build for dev/test) ────────────────────────────
+# Builds the proxy image from the local working tree instead of cloning from
+# a remote git URL. Used by docker-compose for iterating on local changes.
+#
+# Build context MUST be the repository root, not docker/rpc-proxy/.
+FROM node:lts-slim
+
+ENV NODE_ENV=production
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    openssl \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package.json ./
+COPY package-lock.json* ./
+RUN npm ci --omit=dev || npm install --omit=dev
+
+COPY . ./
+
+COPY docker/rpc-proxy/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 19999 19020
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

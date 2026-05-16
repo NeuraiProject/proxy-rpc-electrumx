@@ -1,0 +1,53 @@
+{
+  "wss_push": {
+    "enabled": false,
+    "host": "0.0.0.0",
+    "port": 19020,
+    "path": "/push",
+
+    "tls_enabled": false,
+    "ssl_cert": "./certs/push.crt",
+    "ssl_key": "./certs/push.key",
+
+    "auth_transport": "sec-websocket-protocol",
+    "auth_token": "change-this-token",
+
+    "max_sessions": 5000,
+    "max_subscriptions_per_session": 200,
+    "max_new_connections_per_second": 50,
+    "history_page_limit": 100,
+    "reorg_invalidate_depth": 60,
+    "send_initial_state": true,
+
+    "zmq_enabled": true,
+    "zmq_endpoint": "tcp://neuraid:28332",
+    "zmq_sequence_enabled": false,
+    "poll_interval_ms": 5000,
+    "mempool_interval_ms": 3000
+  },
+  "nodes": [
+    {
+      "name": "Local Neurai Node with DePIN",
+      "username": "your_rpc_username",
+      "password": "your_rpc_password",
+      "neurai_url": "http://localhost:19001",
+      "depin_enabled": true,
+      "depin_url": "http://localhost:19002"
+    },
+    {
+      "name": "Remote Node without DePIN",
+      "username": "remote_user",
+      "password": "remote_pass",
+      "neurai_url": "http://remote-server.com:19001",
+      "depin_enabled": false
+    },
+    {
+      "name": "Node with custom DePIN port",
+      "username": "user",
+      "password": "pass",
+      "neurai_url": "http://localhost:19001",
+      "depin_enabled": true,
+      "depin_url": "http://localhost:29002"
+    }
+  ]
+}

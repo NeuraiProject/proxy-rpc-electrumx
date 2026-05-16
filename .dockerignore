@@ -1,0 +1,12 @@
+node_modules
+.git
+.gitignore
+*.log
+config.json
+certs
+docker/node
+tmp
+.vscode
+.idea
+coverage
+.nyc_output

@@ -1,0 +1,32 @@
+{
+  "name": "neurai-wss-push",
+  "version": "2.0.0",
+  "description": "Neurai WSS push server: live address subscriptions + DePIN over WebSocket",
+  "main": "index.js",
+  "dependencies": {
+    "@neuraiproject/neurai-rpc": "^0.4.6",
+    "node-fetch": "^2.7.0",
+    "p-queue": "6.6.2",
+    "ws": "^8.18.0"
+  },
+  "scripts": {
+    "start": "node --no-deprecation index",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neuraiproject/neurai-rpc-proxy.git"
+  },
+  "keywords": [
+    "Neurai"
+  ],
+  "author": "Raven Rebels",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/neuraiproject/neurai-rpc-proxy/issues"
+  },
+  "homepage": "https://github.com/neuraiproject/neurai-rpc-proxy#readme",
+  "devDependencies": {
+    "jest": "29.3.1"
+  }
+}
