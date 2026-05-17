@@ -1,3 +1,5 @@
+name: neurai-wallet-services
+
 services:
   neuraid:
     build:
