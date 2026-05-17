@@ -131,12 +131,21 @@ async function refreshAddress(address, reason, extraDelta) {
 
 async function refreshAllSubs(reason) {
   const addresses = subscriptions.getAllSubscribedAddresses();
+  const t0 = Date.now();
   for (const addr of addresses) {
     // Sequential, not Promise.all: avoids slamming the node with N parallel
     // RPCs (each refreshAddress fires getaddressbalance/mempool/utxos in
     // parallel internally already).
     // eslint-disable-next-line no-await-in-loop
     await refreshAddress(addr, reason);
+  }
+  // Early-warning signal for the candidate-addresses optimization (plan §5).
+  // If this fires, the per-block fan-out is starting to eat into block time.
+  const elapsed = Date.now() - t0;
+  if (elapsed > 5000) {
+    console.log(
+      `[chain-events] refreshAllSubs(${reason}) took ${elapsed}ms for ${addresses.length} addrs — consider the candidate-addresses optimization (plan §5)`,
+    );
   }
 }
 
