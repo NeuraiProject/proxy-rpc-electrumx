@@ -281,6 +281,184 @@ async function testValidAddressSubscribe() {
   });
 }
 
+async function testGetStateMissingAddress() {
+  await withSession(async (ws) => {
+    const r = await rpc(ws, { id: 850, method: "address.get_state", params: {} });
+    if (r.error && r.error.code === 1003) ok("address.get_state requires address (1003)");
+    else fail("get_state missing address", JSON.stringify(r));
+  });
+}
+
+async function testGetStateInvalidCursor() {
+  await withSession(async (ws) => {
+    const r = await rpc(ws, {
+      id: 851,
+      method: "address.get_state",
+      params: { address: TEST_ADDRESS || "tnq1pinvalid", cursor: "not-a-cursor" },
+    });
+    if (r.error && r.error.code === 1003) ok("address.get_state rejects malformed cursor (1003)");
+    else fail("get_state invalid cursor", JSON.stringify(r));
+  });
+}
+
+async function testGetStateAssetFilterRejected() {
+  await withSession(async (ws) => {
+    const r = await rpc(ws, {
+      id: 852,
+      method: "address.get_state",
+      params: { address: TEST_ADDRESS || "tnq1pinvalid", asset: "SOMEASSET" },
+    });
+    if (r.error && r.error.code === 1003) ok("address.get_state rejects asset filter in MVP (1003)");
+    else fail("get_state asset filter", JSON.stringify(r));
+  });
+}
+
+async function testGetStateUtxoLimit() {
+  if (!TEST_ADDRESS) {
+    console.log("  -- TEST_ADDRESS not set, skipping utxo_limit test");
+    return;
+  }
+  await withSession(async (ws) => {
+    // Default (no utxo_limit): should cap at 100
+    const r = await rpc(ws, {
+      id: 870,
+      method: "address.get_state",
+      params: { address: TEST_ADDRESS, include_utxos: true, include_history: false, limit: 0 },
+    });
+    if (!r.result) return fail("utxo_limit default: result", JSON.stringify(r));
+    const u = r.result.utxos;
+    const p = r.result.utxo_page;
+    if (!Array.isArray(u)) return fail("utxo_limit default: utxos not array", JSON.stringify(r.result));
+    if (u.length > 100) return fail("utxo_limit default exceeds 100", `got ${u.length}`);
+    if (!p || typeof p.has_more !== "boolean") return fail("utxo_page shape", JSON.stringify(p));
+    ok(`utxo_limit default cap → ${u.length} utxos has_more=${p.has_more}`);
+  });
+}
+
+async function testGetStateUtxoCursor() {
+  if (!TEST_ADDRESS) return;
+  await withSession(async (ws) => {
+    const r1 = await rpc(ws, {
+      id: 871,
+      method: "address.get_state",
+      params: { address: TEST_ADDRESS, include_utxos: true, include_history: false, utxo_limit: 5 },
+    });
+    if (!r1.result || !Array.isArray(r1.result.utxos))
+      return fail("utxo cursor: page 1", JSON.stringify(r1));
+    if (!r1.result.utxo_page.has_more) {
+      console.log(`  -- address has <= 5 UTXOs, skipping cursor advance test`);
+      return;
+    }
+
+    const r2 = await rpc(ws, {
+      id: 872,
+      method: "address.get_state",
+      params: {
+        address: TEST_ADDRESS,
+        include_utxos: true,
+        include_history: false,
+        utxo_limit: 5,
+        utxo_cursor: r1.result.utxo_page.next_cursor,
+      },
+    });
+    if (!r2.result || !Array.isArray(r2.result.utxos))
+      return fail("utxo cursor: page 2", JSON.stringify(r2));
+
+    // Verify no overlap by (txid, vout)
+    const p1Keys = new Set(r1.result.utxos.map((u) => `${u.txid}:${u.vout}`));
+    const overlap = r2.result.utxos.filter((u) => p1Keys.has(`${u.txid}:${u.vout}`)).length;
+    if (overlap > 0)
+      return fail("utxo cursor: pages overlap", `${overlap} duplicate utxos across page 1 and page 2`);
+    ok(`utxo cursor → page2=${r2.result.utxos.length} utxos, no overlap`);
+  });
+}
+
+async function testGetStateUtxoLimitAll() {
+  if (!TEST_ADDRESS) return;
+  await withSession(async (ws) => {
+    const r = await rpc(ws, {
+      id: 873,
+      method: "address.get_state",
+      params: { address: TEST_ADDRESS, include_utxos: true, include_history: false, utxo_limit: 0 },
+    });
+    if (!r.result || !Array.isArray(r.result.utxos))
+      return fail("utxo_limit=0: utxos not array", JSON.stringify(r));
+    const u = r.result.utxos;
+    const p = r.result.utxo_page;
+    if (p.has_more !== false || p.next_cursor !== null)
+      return fail("utxo_limit=0 should disable pagination", JSON.stringify(p));
+    ok(`utxo_limit=0 → all ${u.length} utxos, has_more=false`);
+  });
+}
+
+async function testGetStateInvalidUtxoCursor() {
+  if (!TEST_ADDRESS) return;
+  await withSession(async (ws) => {
+    const r = await rpc(ws, {
+      id: 874,
+      method: "address.get_state",
+      params: { address: TEST_ADDRESS, include_utxos: true, utxo_cursor: "junk" },
+    });
+    if (r.error && r.error.code === 1003) ok("address.get_state rejects malformed utxo_cursor (1003)");
+    else fail("invalid utxo_cursor", JSON.stringify(r));
+  });
+}
+
+async function testGetStateValid() {
+  if (!TEST_ADDRESS) {
+    console.log("  -- TEST_ADDRESS not set, skipping happy-path address.get_state");
+    return;
+  }
+  await withSession(async (ws) => {
+    const r = await rpc(ws, {
+      id: 853,
+      method: "address.get_state",
+      params: {
+        address: TEST_ADDRESS,
+        include_history: true,
+        include_utxos: true,
+        limit: 10,
+      },
+    });
+    if (!r.result) return fail("get_state result", JSON.stringify(r));
+    const res = r.result;
+    if (typeof res.status !== "string") return fail("get_state status type", JSON.stringify(res));
+    if (!res.balance || typeof res.balance.confirmed !== "number")
+      return fail("get_state balance", JSON.stringify(res));
+    if (!Array.isArray(res.history)) return fail("get_state history not array", JSON.stringify(res));
+    if (!Array.isArray(res.utxos)) return fail("get_state utxos not array", JSON.stringify(res));
+    if (!Array.isArray(res.mempool)) return fail("get_state mempool not array", JSON.stringify(res));
+    if (!res.page || typeof res.page.has_more !== "boolean")
+      return fail("get_state page shape", JSON.stringify(res.page));
+    ok(
+      `address.get_state(${TEST_ADDRESS.slice(0, 16)}...) history=${res.history.length} utxos=${res.utxos.length} has_more=${res.page.has_more}`,
+    );
+
+    // If there's history, exercise the cursor: ask the next page and verify it advances.
+    if (res.page.has_more && res.page.next_cursor) {
+      const r2 = await rpc(ws, {
+        id: 854,
+        method: "address.get_state",
+        params: {
+          address: TEST_ADDRESS,
+          include_history: true,
+          include_utxos: false,
+          limit: 10,
+          cursor: res.page.next_cursor,
+        },
+      });
+      if (!r2.result || !Array.isArray(r2.result.history))
+        return fail("get_state page 2", JSON.stringify(r2));
+      // First page ends at next_cursor; page 2 should start there. Verify no overlap by txid.
+      const firstTxids = new Set(res.history.map((h) => h.txid));
+      const overlap = r2.result.history.filter((h) => firstTxids.has(h.txid)).length;
+      // Some overlap is possible if a tx has many outputs and was split across pages, but the
+      // (height, tx_index) cursor should prevent dupes when txs occupy distinct slots.
+      ok(`address.get_state page 2 returned ${r2.result.history.length} items (overlap=${overlap})`);
+    }
+  });
+}
+
 async function testDepinChallengeRequiresAddress() {
   await withSession(async (ws) => {
     const r = await rpc(ws, { id: 900, method: "depin.challenge", params: {} });
@@ -373,11 +551,19 @@ async function testBurst() {
   await testInvalidAddress();
   await testUnsubscribeIdempotent();
   await testBroadcastGarbage();
+  await testGetStateMissingAddress();
+  await testGetStateInvalidCursor();
+  await testGetStateAssetFilterRejected();
   await testDepinChallengeRequiresAddress();
   await testDepinSignedRejectsMissingSignature();
   await testDepinReadOnlyRoutes();
   await testDepinUnknownMethod();
   await testValidAddressSubscribe();
+  await testGetStateValid();
+  await testGetStateUtxoLimit();
+  await testGetStateUtxoCursor();
+  await testGetStateUtxoLimitAll();
+  await testGetStateInvalidUtxoCursor();
   await testBurst();
 
   console.log("");

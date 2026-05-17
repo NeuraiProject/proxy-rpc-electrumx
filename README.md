@@ -27,21 +27,21 @@ that speaks the same protocol.
 
 ## Status
 
-**Phases 1 + 2 implemented and verified against a live testnet node**:
+**Phases 1, 2, 3 + 4 implemented and verified against a live testnet node**:
 
 - `hello`, `ping`
 - `address.subscribe`, `address.unsubscribe` (with initial state)
+- `address.get_state` with composite cursor pagination
 - `tx.broadcast`
 - `depin.*` — read-only and signed methods (with challenge cache)
 - Push events: `chain.tip`, `chain.reorg`, `address.changed`,
   `node.synced`, `node.syncing`
-- ZMQ subscriber (`zeromq` optional dep) + polling fallback
+- ZMQ subscriber (`zeromq` optional dep) + mempool polling fallback
 - Sync gating: methods that need a synced chain return `1008` with progress
 - Auth, rate limit, session limits, cert hot-reload, block-index warmup
 
-Pending: paginated `address.get_state`, assets (`assets: true | string[]`
-filter on subscribe), WS-frame keepalive, per-block "candidate addresses"
-refresh optimization.
+Pending: assets (`assets: true | string[]` filter on subscribe + get_state),
+WS-frame keepalive, per-block "candidate addresses" refresh optimization.
 
 ## Protocol overview
 
@@ -82,6 +82,7 @@ Application-level version (reported in `hello`): `wss-push/1`.
 | `ping` | none | `"pong"` | no |
 | `address.subscribe` | `{address}` | `{address, status, balance, height}` | **yes** |
 | `address.unsubscribe` | `{address}` | `true` | no |
+| `address.get_state` | `{address, include_history?, include_utxos?, cursor?, limit?, utxo_cursor?, utxo_limit?, asset?, from_height?}` | `{address, status, balance, mempool, history, utxos, page, utxo_page}` | **yes** |
 | `tx.broadcast` | `{rawtx}` | `{txid}` | **yes** |
 | `depin.check_validity` | `[asset]` or `{args:[asset]}` | RPC result | **yes** |
 | `depin.list_holders` | `[asset]` | RPC result | **yes** |
@@ -101,6 +102,63 @@ Application-level version (reported in `hello`): `wss-push/1`.
 
 DePIN signed methods talk to the independent DePIN messaging daemon and
 are therefore not affected by Neurai chain sync state.
+
+#### `address.get_state` and pagination
+
+`address.get_state` returns the full per-address snapshot the wallet needs
+to render a screen: balance, mempool entries, recent history, and UTXOs.
+History is **always paginated** using a composite opaque cursor (`height:tx_index`):
+
+```json
+// request
+{ "id": 4, "method": "address.get_state",
+  "params": {
+    "address": "tnq1p9tdg76plsuss5lguphhm76t0faf2hy8vmefrq39ctsk0t5fqygzsz2dm40",
+    "include_history": true,
+    "include_utxos": true,
+    "limit": 100,
+    "cursor": null
+  } }
+
+// response
+{ "id": 4, "result": {
+    "address": "...",
+    "status": "d9385809c15265e9...",
+    "balance": { "confirmed": 500000000000, "unconfirmed": 0 },
+    "mempool": [ { "txid": "...", "satoshis": 100000, "prev_txid": null, "prev_vout": null } ],
+    "history": [ { "txid": "471e4d...", "height": 75841, "tx_index": 1, "satoshis": 500000000000 } ],
+    "utxos":   [ { "txid": "...", "vout": 0, "satoshis": 500000000000, "height": 75841 } ],
+    "page":      { "cursor": null, "limit": 100, "has_more": true, "next_cursor": "75900:3" },
+    "utxo_page": { "cursor": null, "limit": 100, "has_more": false, "next_cursor": null }
+  } }
+```
+
+To fetch the next history page, the wallet sends `params.cursor: "75900:3"`
+(the exact value returned in `next_cursor`). The cursor is opaque — the
+client must not parse or construct it. `include_history` and `include_utxos`
+default to `true`; set them to `false` for a cheaper response when the
+wallet only needs the balance + status. `from_height` is accepted as a
+shortcut for the first page only — subsequent pages must use `next_cursor`.
+
+History entries aggregate per (height, tx_index, txid): if a single tx has
+multiple outputs paying the same address, they collapse into one entry
+with the summed satoshis.
+
+UTXOs are paginated independently from history. By default `utxo_limit` is
+**100** to keep mobile payloads sane — an address with thousands of UTXOs
+(coinbase miner addresses, exchange hot wallets) would otherwise produce
+multi-MB responses. The wallet has two ways to get more:
+
+- `utxo_limit: <N>` — at most N UTXOs in this page; use `utxo_cursor`
+  (returned as `utxo_page.next_cursor`) to fetch the next page.
+- `utxo_limit: 0` — explicit opt-in for the **full set**, no cap. Use only
+  when the wallet is prepared to handle large responses.
+
+The server-side cap is `wss_push.utxo_page_limit` (default 1000); requests
+above this clamp silently to the cap unless `utxo_limit: 0`.
+
+The `asset` field is reserved for Fase 5 and currently must be `null` or
+`false` (native XNA only).
 
 ### Server-to-client events
 
@@ -269,6 +327,7 @@ self-signed cert in-container at startup.
 │   ├── notifications.js      # broadcast() + notifyAddress() helpers
 │   ├── status.js             # stable status hash (fixed-order string)
 │   ├── rpc.js                # separate PQueue for WSS-originated RPCs
+│   ├── cursor.js             # opaque "height:tx_index" cursor codec
 │   ├── node-health.js        # getblockchaininfo poller + node.synced/syncing
 │   ├── chain-state.js        # tip + Map<height,hash> + lastStatus per address
 │   ├── chain-events.js       # onBlock/onRawTx orchestrator + warmup + reorg detection

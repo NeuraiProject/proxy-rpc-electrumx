@@ -23,6 +23,7 @@ set -eu
 : "${PROXY_WSS_PUSH_MAX_SUBSCRIPTIONS_PER_SESSION:=200}"
 : "${PROXY_WSS_PUSH_MAX_NEW_CONNECTIONS_PER_SECOND:=50}"
 : "${PROXY_WSS_PUSH_HISTORY_PAGE_LIMIT:=100}"
+: "${PROXY_WSS_PUSH_UTXO_PAGE_LIMIT:=1000}"
 : "${PROXY_WSS_PUSH_REORG_INVALIDATE_DEPTH:=60}"
 : "${PROXY_ZMQ_ENDPOINT:=tcp://neuraid:28332}"
 
@@ -63,6 +64,7 @@ cat > /app/config.json <<EOF
     "max_subscriptions_per_session": ${PROXY_WSS_PUSH_MAX_SUBSCRIPTIONS_PER_SESSION},
     "max_new_connections_per_second": ${PROXY_WSS_PUSH_MAX_NEW_CONNECTIONS_PER_SECOND},
     "history_page_limit": ${PROXY_WSS_PUSH_HISTORY_PAGE_LIMIT},
+    "utxo_page_limit": ${PROXY_WSS_PUSH_UTXO_PAGE_LIMIT},
     "reorg_invalidate_depth": ${PROXY_WSS_PUSH_REORG_INVALIDATE_DEPTH},
     "zmq_endpoint": "${PROXY_ZMQ_ENDPOINT}"
   },

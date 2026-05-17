@@ -58,6 +58,7 @@ function fillDefaults(cfg) {
     max_subscriptions_per_session: cfg.max_subscriptions_per_session || 200,
     max_new_connections_per_second: cfg.max_new_connections_per_second || 50,
     history_page_limit: cfg.history_page_limit || 100,
+    utxo_page_limit: cfg.utxo_page_limit || 1000,
     reorg_invalidate_depth: cfg.reorg_invalidate_depth || 60,
     send_initial_state: cfg.send_initial_state !== false,
     zmq_enabled: cfg.zmq_enabled === true,
