@@ -1,10 +1,10 @@
-# neurai-wss-push
+# neurai-wallet-services
 
-WSS push server for Neurai mobile wallets. Holds a persistent WebSocket per
-client, lets it subscribe to addresses, and pushes events when balances,
-mempool state, the chain tip or the node's sync state change — so the wallet
-never polls. Also exposes the Neurai DePIN messaging RPCs over the same
-connection.
+Backend services for Neurai mobile and light wallets. Holds a persistent
+WebSocket per client, lets it subscribe to addresses, and pushes events when
+balances, mempool state, the chain tip or the node's sync state change — so
+the wallet never polls. Also exposes the Neurai DePIN messaging RPCs over
+the same connection. Future home for native address indexing.
 
 This is **not** a generic Electrum/ElectrumX-compatible server. The wire
 protocol is custom and small, intended to be paired with one mobile wallet
@@ -60,7 +60,7 @@ Application-level version (reported in `hello`): `wss-push/1`.
 
 // server → client
 { "id": 1, "result": {
-    "server": "neurai-rpc-proxy-wss",
+    "server": "neurai-wallet-services",
     "protocol": "wss-push/1",
     "protocol_min": "wss-push/1",
     "protocol_max": "wss-push/1",

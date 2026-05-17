@@ -43,7 +43,7 @@ if [ "${PROXY_WSS_PUSH_ENABLED}" = "true" ] \
       -keyout "${PROXY_WSS_PUSH_SSL_KEY}" \
       -out "${PROXY_WSS_PUSH_SSL_CERT}" \
       -days 365 -nodes \
-      -subj "/CN=neurai-wss-push-dev" >/dev/null 2>&1
+      -subj "/CN=neurai-wallet-services-dev" >/dev/null 2>&1
     chmod 600 "${PROXY_WSS_PUSH_SSL_KEY}"
   else
     echo "[entrypoint] cert already exists at ${PROXY_WSS_PUSH_SSL_CERT}, skipping autogen"

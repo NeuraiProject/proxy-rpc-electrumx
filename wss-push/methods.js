@@ -163,7 +163,7 @@ const handlers = {
     const sync = nodeHealth.getStatus();
 
     return {
-      server: "neurai-rpc-proxy-wss",
+      server: "neurai-wallet-services",
       protocol: protocol.VERSION,
       protocol_min: protocol.VERSION,
       protocol_max: protocol.VERSION,
