@@ -5,6 +5,7 @@ const rpc = require("./rpc");
 const chainState = require("./chain-state");
 const nodeHealth = require("./node-health");
 const zmqWatcher = require("./zmq-watcher");
+const statsServer = require("./stats-server");
 
 const VALID_AUTH_TRANSPORTS = ["sec-websocket-protocol", "query", "both"];
 
@@ -70,6 +71,8 @@ function fillDefaults(cfg) {
     zmq_sequence_enabled: cfg.zmq_sequence_enabled === true,
     zmq_watchdog_ms: cfg.zmq_watchdog_ms || 5 * 60 * 1000,
     concurrency: cfg.concurrency || 4,
+    stats_enabled: cfg.stats_enabled === true,
+    stats_port: cfg.stats_port || 19021,
   };
 }
 
@@ -82,6 +85,10 @@ function start(rawConfig, globalConfig) {
   validateConfig(cfg);
 
   rpc.initQueue(cfg.concurrency);
+
+  if (cfg.stats_enabled) {
+    statsServer.start(cfg, getStats);
+  }
 
   const ctx = { config: cfg, globalConfig: globalConfig || null };
   return server.start(cfg, ctx);

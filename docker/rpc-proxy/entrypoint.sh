@@ -29,6 +29,8 @@ set -eu
 : "${PROXY_WSS_PUSH_REORG_INVALIDATE_DEPTH:=60}"
 : "${PROXY_WSS_PUSH_KEEPALIVE_INTERVAL_MS:=25000}"
 : "${PROXY_WSS_PUSH_KEEPALIVE_TIMEOUT_MS:=10000}"
+: "${PROXY_WSS_PUSH_STATS_ENABLED:=false}"
+: "${PROXY_WSS_PUSH_STATS_PORT:=19021}"
 : "${PROXY_ZMQ_ENDPOINT:=tcp://neuraid:28332}"
 
 if [ "${PROXY_WSS_PUSH_ENABLED}" = "true" ] \
@@ -74,6 +76,8 @@ cat > /app/config.json <<EOF
     "reorg_invalidate_depth": ${PROXY_WSS_PUSH_REORG_INVALIDATE_DEPTH},
     "keepalive_interval_ms": ${PROXY_WSS_PUSH_KEEPALIVE_INTERVAL_MS},
     "keepalive_timeout_ms": ${PROXY_WSS_PUSH_KEEPALIVE_TIMEOUT_MS},
+    "stats_enabled": ${PROXY_WSS_PUSH_STATS_ENABLED},
+    "stats_port": ${PROXY_WSS_PUSH_STATS_PORT},
     "zmq_endpoint": "${PROXY_ZMQ_ENDPOINT}"
   },
   "nodes": [

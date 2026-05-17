@@ -368,6 +368,39 @@ client → depin.send_msg({address, signature, args: [token, "auto", message, fr
 `"auto"` in the ip:port slot is auto-substituted with the configured DePIN
 node's host:port, matching the legacy `/depin` behavior.
 
+### Local stats endpoint (optional)
+
+For ops/monitoring there is an optional HTTP endpoint that exposes a JSON
+snapshot of sessions, subscriptions, chain tip, node health, ZMQ status and
+RPC queue depth. **Disabled by default.** Activate with:
+
+```json
+"wss_push": {
+  "stats_enabled": true,
+  "stats_port": 19021
+}
+```
+
+Or via env vars in Docker:
+
+```yaml
+PROXY_WSS_PUSH_STATS_ENABLED: "true"
+PROXY_WSS_PUSH_STATS_PORT: "19021"
+```
+
+The server always binds to `127.0.0.1` regardless of any host setting — the
+response is unauthenticated and reveals internal state, so it must never be
+reachable from the public network. To consume it from the host, exec into
+the container or add a localhost port mapping in your compose file.
+
+```text
+$ docker exec neurai-testnet-rpc-proxy wget -qO- http://127.0.0.1:19021/stats
+{"uptime_s":1234,"sessions":{"sessionCount":3},"subscriptions":{"distinctAddresses":7,...},
+ "chain":{"tip":{"height":76820,...},...},"node":{"syncing":false,...},"zmq":{...}}
+```
+
+Only `GET /stats` is served; other paths return 404 and non-GET returns 405.
+
 ## Running locally (docker, testnet)
 
 The docker stack runs a Neurai testnet node, the wss-push server, and an

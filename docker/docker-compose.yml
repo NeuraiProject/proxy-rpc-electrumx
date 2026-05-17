@@ -125,6 +125,11 @@ services:
       PROXY_WSS_PUSH_TLS_ENABLED: "false"
       PROXY_WSS_PUSH_AUTOGEN_CERT: "false"
       PROXY_WSS_PUSH_ZMQ_SEQUENCE_ENABLED: "false"
+      # Optional local stats endpoint for ops/monitoring. When enabled, exposes
+      # GET http://127.0.0.1:<port>/stats with sessions/subs/tip/zmq/queue.
+      # Always loopback-only (unauthenticated); never publish the port.
+      PROXY_WSS_PUSH_STATS_ENABLED: "false"
+      PROXY_WSS_PUSH_STATS_PORT: "19021"
       PROXY_ZMQ_ENDPOINT: "tcp://neuraid:28332"
 
     expose:
