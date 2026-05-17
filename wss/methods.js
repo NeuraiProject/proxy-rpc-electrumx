@@ -58,6 +58,54 @@ function projectAssetUtxos(assetUtxos, filter) {
 // Native asset name as Neurai's RPC reports it.
 const NATIVE_ASSET = "XNA";
 
+// Per-height block time cache. Block headers are immutable for confirmed
+// heights (a reorg replaces the hash so any cached value is from the old
+// branch — but on reorg the relevant heights would be re-queried with
+// different content, and stale time would only affect display, never balances).
+// Keep a cap so a long-running process doesn't grow unbounded.
+const blockTimeCache = new Map();
+const BLOCK_TIME_CACHE_MAX = 20000;
+
+function cacheSetBlockTime(height, time) {
+  if (blockTimeCache.size >= BLOCK_TIME_CACHE_MAX) {
+    const firstKey = blockTimeCache.keys().next().value;
+    if (firstKey !== undefined) blockTimeCache.delete(firstKey);
+  }
+  blockTimeCache.set(height, time);
+}
+
+async function getBlockTime(height) {
+  if (typeof height !== "number" || height <= 0) return null;
+  const cached = blockTimeCache.get(height);
+  if (typeof cached === "number") return cached;
+  try {
+    const hash = await callRPC("getblockhash", [height]);
+    if (typeof hash !== "string" || hash.length === 0) return null;
+    const header = await callRPC("getblockheader", [hash, true]);
+    if (!header || typeof header.time !== "number") return null;
+    cacheSetBlockTime(height, header.time);
+    return header.time;
+  } catch {
+    return null;
+  }
+}
+
+async function annotateHistoryWithBlockTime(history) {
+  if (!Array.isArray(history) || history.length === 0) return history;
+  const uniqueHeights = [...new Set(history.map((h) => h.height).filter((h) => typeof h === "number" && h > 0))];
+  if (uniqueHeights.length === 0) return history;
+  const times = await Promise.all(uniqueHeights.map((h) => getBlockTime(h)));
+  const byHeight = new Map();
+  for (let i = 0; i < uniqueHeights.length; i++) {
+    if (typeof times[i] === "number") byHeight.set(uniqueHeights[i], times[i]);
+  }
+  for (const entry of history) {
+    const t = byHeight.get(entry.height);
+    if (typeof t === "number") entry.block_time = t;
+  }
+  return history;
+}
+
 async function fetchAddressState(address) {
   // Always fetch native + all assets in parallel. The asset data feeds into
   // the status hash so any asset change (not just native) will trigger an
@@ -478,6 +526,11 @@ const handlers = {
         pageInfo.has_more = true;
         pageInfo.next_cursor = cursor.encode(next.height, next.tx_index, next.asset);
       }
+
+      // Decorate each entry with the block's unix time (seconds) so the wallet
+      // can render real "X days ago" timestamps instead of falling back to
+      // Date.now() for confirmed transactions.
+      await annotateHistoryWithBlockTime(history);
     }
 
     const mempool = (state.mempool || []).map((m) => ({
