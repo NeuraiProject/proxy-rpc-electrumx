@@ -35,6 +35,10 @@ function getSubscribers(address) {
   return addressSubs.get(address) || null;
 }
 
+function getAllSubscribedAddresses() {
+  return Array.from(addressSubs.keys());
+}
+
 function getStats() {
   let totalSubs = 0;
   for (const set of addressSubs.values()) totalSubs += set.size;
@@ -49,5 +53,6 @@ module.exports = {
   unsubscribe,
   unsubscribeAll,
   getSubscribers,
+  getAllSubscribedAddresses,
   getStats,
 };

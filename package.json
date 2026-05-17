@@ -9,6 +9,9 @@
     "p-queue": "6.6.2",
     "ws": "^8.18.0"
   },
+  "optionalDependencies": {
+    "zeromq": "^6.0.0"
+  },
   "scripts": {
     "start": "node --no-deprecation index",
     "test": "jest"

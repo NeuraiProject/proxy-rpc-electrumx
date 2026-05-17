@@ -2,6 +2,8 @@ const server = require("./server");
 const sessionMod = require("./session");
 const subscriptions = require("./subscriptions");
 const rpc = require("./rpc");
+const chainState = require("./chain-state");
+const nodeHealth = require("./node-health");
 
 const VALID_AUTH_TRANSPORTS = ["sec-websocket-protocol", "query", "both"];
 
@@ -84,6 +86,8 @@ function getStats() {
     sessions: sessionMod.getStats(),
     subscriptions: subscriptions.getStats(),
     queue: rpc.getQueueStats(),
+    chain: chainState.getStats(),
+    node: nodeHealth.getStatus(),
   };
 }
 

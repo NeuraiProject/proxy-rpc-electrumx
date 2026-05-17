@@ -1,7 +1,7 @@
 const { getDePinNode } = require("../getRPCNode");
 const depinService = require("../depinService");
 const { ERROR_CODES } = require("./protocol");
-const { MethodError, requireHello } = require("./common");
+const { MethodError, requireHello, requireSynced } = require("./common");
 const { callRPC } = require("./rpc");
 
 // Read-only DePIN methods. These are normal Neurai RPC calls (no signature
@@ -73,6 +73,11 @@ const handlers = {};
 for (const [wssMethod, rpcMethod] of Object.entries(READ_ONLY_METHODS)) {
   handlers[wssMethod] = async (session, params) => {
     requireHello(session);
+    // Read-only DePIN methods query Neurai chain state via RPC. Refuse while
+    // the node is syncing so we don't return data based on a partial chain.
+    // Signed DePIN methods below go to the independent DePIN messaging
+    // service and are NOT gated.
+    requireSynced();
     const args = coerceArgs(params);
     try {
       return await callRPC(rpcMethod, args);

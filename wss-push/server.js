@@ -5,9 +5,15 @@ const { WebSocketServer } = require("ws");
 
 const protocol = require("./protocol");
 const { ERROR_CODES, parseMessage, makeResponse, makeError } = protocol;
-const { handlers, MethodError } = require("./methods");
+const methods = require("./methods");
+const { handlers, MethodError } = methods;
 const sessionMod = require("./session");
 const subscriptions = require("./subscriptions");
+const chainEvents = require("./chain-events");
+const prevoutCache = require("./prevout-cache");
+const zmqWatcher = require("./zmq-watcher");
+const poller = require("./poller");
+const nodeHealth = require("./node-health");
 
 const MAX_PAYLOAD_BYTES = 64 * 1024;
 
@@ -270,7 +276,74 @@ function start(config, ctx) {
     );
   });
 
+  startChainEvents(config);
+
   return { server, wss };
+}
+
+function startChainEvents(config) {
+  const cache = prevoutCache.create({ maxSize: 100000 });
+  chainEvents.configure({
+    methods,
+    prevoutCache: cache,
+    invalidate_depth: config.reorg_invalidate_depth || 60,
+    block_index_size: config.block_index_size || 120,
+  });
+
+  const handlersForWatchers = {
+    onBlock: (hash) => {
+      chainEvents.onBlock(hash).catch((e) =>
+        console.log("[chain-events] onBlock error:", e && e.message ? e.message : e),
+      );
+    },
+    onRawTx: (buf) => {
+      chainEvents.onRawTx(buf).catch((e) =>
+        console.log("[chain-events] onRawTx error:", e && e.message ? e.message : e),
+      );
+    },
+    onMempoolAdded: (txids) => {
+      chainEvents.onMempoolAdded(txids).catch((e) =>
+        console.log("[chain-events] onMempoolAdded error:", e && e.message ? e.message : e),
+      );
+    },
+    onInitialTip: (hash) => {
+      chainEvents.onInitialTip(hash).catch(() => {});
+    },
+    onSequenceGap: (topic, prev, next) => {
+      console.log(`[ZMQ] sequence gap on ${topic}: ${prev} -> ${next}, polling will resync`);
+    },
+  };
+
+  // Node health poll (cheap, every 10s by default). Starts immediately so
+  // requireSynced() in method handlers has fresh data right after listen().
+  nodeHealth.start({
+    pollIntervalMs: config.node_health_poll_interval_ms || 10000,
+  });
+
+  // Warm up the block index before opening watchers so that the very first
+  // onBlock has enough history to do reorg detection correctly. Watchers
+  // start after warmup completes (or fails — we don't block forever).
+  (async () => {
+    await chainEvents.warmup();
+
+    // ZMQ first (real-time). Falls back silently if the optional `zeromq` dep
+    // isn't installed or if connection fails — the poller handles it.
+    zmqWatcher.start(config, handlersForWatchers).catch((e) =>
+      console.log("[ZMQ] start failed:", e && e.message ? e.message : e),
+    );
+
+    // Polling fallback runs always — covers ZMQ outages, missed messages, and
+    // first-tip seeding before any block arrives via ZMQ.
+    poller.start(
+      {
+        poll_interval_ms: config.poll_interval_ms,
+        mempool_interval_ms: config.mempool_interval_ms,
+      },
+      handlersForWatchers,
+    );
+  })().catch((e) =>
+    console.log("[chain-events] startup error:", e && e.message ? e.message : e),
+  );
 }
 
 module.exports = { start };

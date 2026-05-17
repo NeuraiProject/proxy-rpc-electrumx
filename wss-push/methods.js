@@ -3,7 +3,9 @@ const { ERROR_CODES } = protocol;
 const { callRPC } = require("./rpc");
 const subscriptions = require("./subscriptions");
 const { statusHash } = require("./status");
-const { MethodError, requireHello } = require("./common");
+const { MethodError, requireHello, requireSynced } = require("./common");
+const chainState = require("./chain-state");
+const nodeHealth = require("./node-health");
 const depin = require("./depin-methods");
 
 async function fetchAddressState(address) {
@@ -71,6 +73,8 @@ const handlers = {
       // best-effort
     }
 
+    const sync = nodeHealth.getStatus();
+
     return {
       server: "neurai-rpc-proxy-wss",
       protocol: protocol.VERSION,
@@ -79,6 +83,10 @@ const handlers = {
       network: session.network,
       tip_height: tipHeight,
       tip_hash: tipHash,
+      syncing: sync.syncing,
+      verification_progress: sync.verification_progress,
+      blocks: sync.blocks,
+      headers: sync.headers,
     };
   },
 
@@ -86,6 +94,7 @@ const handlers = {
 
   "address.subscribe": async (session, params, ctx) => {
     requireHello(session);
+    requireSynced();
     if (!params || typeof params.address !== "string" || params.address.length === 0) {
       throw new MethodError(ERROR_CODES.INVALID_PARAMS, "address required");
     }
@@ -107,6 +116,10 @@ const handlers = {
     }
 
     const state = await fetchAddressState(address);
+    // Seed lastStatus so that chain-events doesn't spuriously emit
+    // address.changed on the next refresh tick for an unchanged status.
+    chainState.setLastStatus(address, state.status);
+
     let height = null;
     try {
       const h = await callRPC("getblockcount", []);
@@ -134,6 +147,7 @@ const handlers = {
 
   "tx.broadcast": async (session, params) => {
     requireHello(session);
+    requireSynced();
     if (!params || typeof params.rawtx !== "string" || params.rawtx.length === 0) {
       throw new MethodError(ERROR_CODES.INVALID_PARAMS, "rawtx required");
     }
