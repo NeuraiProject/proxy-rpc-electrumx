@@ -7,7 +7,6 @@ services:
       dockerfile: Dockerfile
       args:
         BRANCH: DePIN-Test
-    container_name: neurai-testnet-node
     restart: unless-stopped
 
     logging:
@@ -58,7 +57,7 @@ services:
 
     # Internal-only — the node is not reachable from the host. The rpc-proxy
     # container talks to neuraid:19101 over the neurai_net bridge. Use
-    # `docker exec neurai-testnet-node neurai-cli ...` for CLI access.
+    # `docker compose exec neuraid neurai-cli ...` for CLI access.
     expose:
       - "19100"          # testnet P2P (only relevant if NEURAI_LISTEN=1)
       - "19101"          # testnet RPC — consumed by rpc-proxy
@@ -80,7 +79,6 @@ services:
       # For published image, swap to context: ./rpc-proxy + dockerfile: Dockerfile.
       context: ..
       dockerfile: docker/rpc-proxy/Dockerfile.local
-    container_name: neurai-testnet-rpc-proxy
     restart: unless-stopped
 
     logging:
@@ -158,7 +156,6 @@ services:
     build:
       context: ./wss-test
       dockerfile: Dockerfile
-    container_name: neurai-testnet-wss-test
     profiles:
       - test
     environment:

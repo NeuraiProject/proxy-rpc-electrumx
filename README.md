@@ -394,7 +394,7 @@ reachable from the public network. To consume it from the host, exec into
 the container or add a localhost port mapping in your compose file.
 
 ```text
-$ docker exec neurai-testnet-rpc-proxy wget -qO- http://127.0.0.1:19021/stats
+$ docker compose -f docker/docker-compose.yml exec rpc-proxy wget -qO- http://127.0.0.1:19021/stats
 {"uptime_s":1234,"sessions":{"sessionCount":3},"subscriptions":{"distinctAddresses":7,...},
  "chain":{"tip":{"height":76820,...},...},"node":{"syncing":false,...},"zmq":{...}}
 ```
