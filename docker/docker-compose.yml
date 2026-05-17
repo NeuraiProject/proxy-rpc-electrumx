@@ -54,12 +54,13 @@ services:
     volumes:
       - neurai_data:/data
 
-    ports:
-      - "19100:19100"   # testnet P2P
-      - "19101:19101"   # testnet RPC
-
+    # Internal-only — the node is not reachable from the host. The rpc-proxy
+    # container talks to neuraid:19101 over the neurai_net bridge. Use
+    # `docker exec neurai-testnet-node neurai-cli ...` for CLI access.
     expose:
-      - "28332"          # ZMQ internal Docker network only
+      - "19100"          # testnet P2P (only relevant if NEURAI_LISTEN=1)
+      - "19101"          # testnet RPC — consumed by rpc-proxy
+      - "28332"          # ZMQ — consumed by rpc-proxy
 
     networks:
       - neurai_net
