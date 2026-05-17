@@ -1,8 +1,8 @@
 // Wire-level Sec-WebSocket-Protocol identifier. Must be a valid HTTP token
-// (RFC 7230 §3.2.6) — no "/". The application-level versioned name "wss-push/1"
+// (RFC 7230 §3.2.6) — no "/". The application-level versioned name "wss/1"
 // is reported only inside the JSON `hello` message.
-const SUBPROTOCOL = "wss-push";
-const VERSION = "wss-push/1";
+const SUBPROTOCOL = "wss";
+const VERSION = "wss/1";
 const SUPPORTED_PROTOCOLS = [VERSION];
 
 const ERROR_CODES = {

@@ -2,7 +2,7 @@
 //
 // Single route: GET /stats → JSON snapshot of sessions, subscriptions, chain
 // tip, node health, ZMQ status, RPC queue. Disabled by default; activate with
-// wss_push.stats_enabled=true. Always binds to 127.0.0.1 regardless of any
+// wss.stats_enabled=true. Always binds to 127.0.0.1 regardless of any
 // host config: the response is unauthenticated and leaks internal state
 // (tip height, session counts, ZMQ liveness) that should not reach the
 // public network.

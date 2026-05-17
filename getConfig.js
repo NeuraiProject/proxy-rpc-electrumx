@@ -8,7 +8,7 @@ function getConfig() {
 
     const template = `
     {
-      "wss_push": {
+      "wss": {
         "enabled": true,
         "host": "0.0.0.0",
         "port": 19020,

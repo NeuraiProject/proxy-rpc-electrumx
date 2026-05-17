@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 
-// Status hash per PLAN_WSS_PUSH.md section 4: fixed-order string, never JSON.stringify.
+// Status hash: fixed-order string, never JSON.stringify.
 // Format:
 //   balance.confirmed:<n>|balance.unconfirmed:<n>|mempool:<txid>,<txid>|utxos:<txid:vout:value:asset>,...
 // Native XNA is represented with empty asset string.

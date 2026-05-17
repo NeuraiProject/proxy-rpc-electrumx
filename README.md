@@ -13,7 +13,7 @@ that speaks the same protocol.
 ## What's in here
 
 - A WSS endpoint at `/push` that speaks a JSON-RPC-like protocol over WebSocket.
-- Auth in the HTTP upgrade via `Sec-WebSocket-Protocol: wss-push, auth.<token>`.
+- Auth in the HTTP upgrade via `Sec-WebSocket-Protocol: wss, auth.<token>`.
 - Built-in rate limiting (`503 Retry-After`) and session/subscription caps.
 - ZMQ subscriber to the Neurai node (`hashblock` + `rawtx`) with polling
   fallback. Real-time `address.changed` / `chain.tip` / `chain.reorg` events.
@@ -47,8 +47,8 @@ Pending: per-block "candidate addresses" refresh (optional improvement).
 
 ## Protocol overview
 
-Wire-level subprotocol identifier: `wss-push`.
-Application-level version (reported in `hello`): `wss-push/1`.
+Wire-level subprotocol identifier: `wss`.
+Application-level version (reported in `hello`): `wss/1`.
 
 ### Handshake
 
@@ -56,14 +56,14 @@ Application-level version (reported in `hello`): `wss-push/1`.
 // client → server (over WSS, after a 101 upgrade)
 { "id": 1, "method": "hello",
   "params": { "client": "my-wallet", "version": "0.1.0",
-              "network": "mainnet", "protocol": "wss-push/1" } }
+              "network": "mainnet", "protocol": "wss/1" } }
 
 // server → client
 { "id": 1, "result": {
     "server": "neurai-wallet-services",
-    "protocol": "wss-push/1",
-    "protocol_min": "wss-push/1",
-    "protocol_max": "wss-push/1",
+    "protocol": "wss/1",
+    "protocol_min": "wss/1",
+    "protocol_max": "wss/1",
     "network": "mainnet",
     "tip_height": 75880,
     "tip_hash": "000048f1998e6f45...",
@@ -164,7 +164,7 @@ multi-MB responses. The wallet has two ways to get more:
 - `utxo_limit: 0` — explicit opt-in for the **full set**, no cap. Use only
   when the wallet is prepared to handle large responses.
 
-The server-side cap is `wss_push.utxo_page_limit` (default 1000); requests
+The server-side cap is `wss.utxo_page_limit` (default 1000); requests
 above this clamp silently to the cap unless `utxo_limit: 0`.
 
 ### Assets
@@ -242,7 +242,7 @@ issuing N individual subscribes:
 Per-entry errors do not abort the batch. The batch as a whole fails (1003)
 if `addresses` is missing/non-array, or (1006) if it would push the session
 over `max_subscriptions_per_session`. The max batch size defaults to **200**
-(configurable via `wss_push.bulk_subscribe_limit`).
+(configurable via `wss.bulk_subscribe_limit`).
 
 `address.unsubscribe.bulk({addresses: [...]})` symmetrically removes many.
 It silently ignores empty/non-string entries and returns `{count}`.
@@ -266,7 +266,7 @@ mempool changes, so the wallet still gets `chain.tip` and `address.changed`
 events — just with the polling-interval latency (default 5s for blocks, 3s
 for mempool) instead of ZMQ's near-real-time.
 
-ZMQ status is exposed via `wssPush.getStats().zmq`:
+ZMQ status is exposed via `wss.getStats().zmq`:
 
 ```json
 { "connected": true, "attempts": 3,
@@ -284,11 +284,11 @@ client doesn't respond with a `pong` within `keepalive_timeout_ms`
 (default **10s**), the server calls `ws.terminate()` and runs the normal
 close cleanup (`unsubscribeAll`, `destroySession`, `keepalive.stop`).
 
-Both values are configurable in `wss_push` config or via env:
+Both values are configurable in `wss` config or via env:
 
 ```
-PROXY_WSS_PUSH_KEEPALIVE_INTERVAL_MS=25000
-PROXY_WSS_PUSH_KEEPALIVE_TIMEOUT_MS=10000
+PROXY_WSS_KEEPALIVE_INTERVAL_MS=25000
+PROXY_WSS_KEEPALIVE_TIMEOUT_MS=10000
 ```
 
 Tuning hints:
@@ -375,7 +375,7 @@ snapshot of sessions, subscriptions, chain tip, node health, ZMQ status and
 RPC queue depth. **Disabled by default.** Activate with:
 
 ```json
-"wss_push": {
+"wss": {
   "stats_enabled": true,
   "stats_port": 19021
 }
@@ -384,8 +384,8 @@ RPC queue depth. **Disabled by default.** Activate with:
 Or via env vars in Docker:
 
 ```yaml
-PROXY_WSS_PUSH_STATS_ENABLED: "true"
-PROXY_WSS_PUSH_STATS_PORT: "19021"
+PROXY_WSS_STATS_ENABLED: "true"
+PROXY_WSS_STATS_PORT: "19021"
 ```
 
 The server always binds to `127.0.0.1` regardless of any host setting — the
@@ -403,7 +403,7 @@ Only `GET /stats` is served; other paths return 404 and non-GET returns 405.
 
 ## Running locally (docker, testnet)
 
-The docker stack runs a Neurai testnet node, the wss-push server, and an
+The docker stack runs a Neurai testnet node, the wss server, and an
 E2E test client.
 
 ```bash
@@ -418,8 +418,8 @@ Defaults:
 
 - WSS push listens on `127.0.0.1:19020/push` in plain WS mode (TLS off).
   A host reverse proxy is expected to terminate TLS.
-- Auth token: `testnet-wss-push-token-do-not-use-in-production` —
-  override via `PROXY_WSS_PUSH_AUTH_TOKEN`.
+- Auth token: `testnet-wss-token-do-not-use-in-production` —
+  override via `PROXY_WSS_AUTH_TOKEN`.
 - DePIN methods are present but `NEURAI_DEPIN_ENABLED=false` by default;
   set to `true` (and ensure the node runs the DePIN service on
   `NEURAI_DEPIN_URL`) to make `depin.*` actually reach a backend.
@@ -473,27 +473,27 @@ get in the way of persistent mobile-wallet connections.
 Set in the proxy service environment:
 
 ```
-PROXY_WSS_PUSH_TLS_ENABLED=true
-PROXY_WSS_PUSH_SSL_CERT=/path/to/fullchain.pem
-PROXY_WSS_PUSH_SSL_KEY=/path/to/privkey.pem
+PROXY_WSS_TLS_ENABLED=true
+PROXY_WSS_SSL_CERT=/path/to/fullchain.pem
+PROXY_WSS_SSL_KEY=/path/to/privkey.pem
 ```
 
 The proxy watches both files and hot-reloads via `setSecureContext` when
 they change (e.g. when a renewal writes new files), so external renewal
 tools work without restarting the container.
 
-For local dev only, `PROXY_WSS_PUSH_AUTOGEN_CERT=true` generates a
+For local dev only, `PROXY_WSS_AUTOGEN_CERT=true` generates a
 self-signed cert in-container at startup.
 
 ## Project layout
 
 ```
 .
-├── index.js                  # entry point — boots wss-push only
+├── index.js                  # entry point — boots wss only
 ├── getConfig.js              # config loader
 ├── getRPCNode.js             # Neurai + DePIN node selection / health checks
 ├── depinService.js           # challenge-response client for the DePIN service
-├── wss-push/
+├── wss/
 │   ├── index.js              # config validation + start() + stats
 │   ├── server.js             # https/http + ws upgrade, auth, rate limit
 │   ├── protocol.js           # message framing, error codes, version constants

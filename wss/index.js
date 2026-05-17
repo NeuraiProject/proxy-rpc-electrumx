@@ -11,34 +11,34 @@ const VALID_AUTH_TRANSPORTS = ["sec-websocket-protocol", "query", "both"];
 
 function validateConfig(cfg) {
   if (!cfg.path || typeof cfg.path !== "string") {
-    throw new Error("[WSS-PUSH] path required");
+    throw new Error("[WSS] path required");
   }
   if (!cfg.port) {
-    throw new Error("[WSS-PUSH] port required");
+    throw new Error("[WSS] port required");
   }
   if (cfg.tls_enabled !== false) {
     if (!cfg.ssl_cert || !cfg.ssl_key) {
-      throw new Error("[WSS-PUSH] ssl_cert and ssl_key required when tls_enabled is true");
+      throw new Error("[WSS] ssl_cert and ssl_key required when tls_enabled is true");
     }
   }
   const transport = cfg.auth_transport || "sec-websocket-protocol";
   if (!VALID_AUTH_TRANSPORTS.includes(transport)) {
     throw new Error(
-      `[WSS-PUSH] invalid auth_transport: ${transport}. Valid: ${VALID_AUTH_TRANSPORTS.join(", ")}`,
+      `[WSS] invalid auth_transport: ${transport}. Valid: ${VALID_AUTH_TRANSPORTS.join(", ")}`,
     );
   }
   if (!cfg.auth_token || typeof cfg.auth_token !== "string") {
-    throw new Error("[WSS-PUSH] auth_token required");
+    throw new Error("[WSS] auth_token required");
   }
   if (cfg.auth_token === "change-this-token") {
     const isProd = process.env.NODE_ENV === "production";
     if (isProd) {
       throw new Error(
-        "[WSS-PUSH] refusing to start in production with default auth_token 'change-this-token'. Set wss_push.auth_token to a real secret.",
+        "[WSS] refusing to start in production with default auth_token 'change-this-token'. Set wss.auth_token to a real secret.",
       );
     }
     console.log(
-      "[WSS-PUSH] WARNING: auth_token is the default 'change-this-token'. This is acceptable only for local development. Set NODE_ENV=production to enforce.",
+      "[WSS] WARNING: auth_token is the default 'change-this-token'. This is acceptable only for local development. Set NODE_ENV=production to enforce.",
     );
   }
 }
@@ -78,7 +78,7 @@ function fillDefaults(cfg) {
 
 function start(rawConfig, globalConfig) {
   if (!rawConfig || rawConfig.enabled !== true) {
-    console.log("[WSS-PUSH] disabled (wss_push.enabled !== true)");
+    console.log("[WSS] disabled (wss.enabled !== true)");
     return null;
   }
   const cfg = fillDefaults(rawConfig);

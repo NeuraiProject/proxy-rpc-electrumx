@@ -140,10 +140,10 @@ function startCertReloader(server, config) {
       certMtime = newCertMtime;
       keyMtime = newKeyMtime;
       console.log(
-        `[WSS-PUSH] reloaded TLS cert (mtime ${new Date(newCertMtime).toISOString()})`,
+        `[WSS] reloaded TLS cert (mtime ${new Date(newCertMtime).toISOString()})`,
       );
     } catch (e) {
-      console.log("[WSS-PUSH] cert reload failed:", e && e.message ? e.message : e);
+      console.log("[WSS] cert reload failed:", e && e.message ? e.message : e);
     }
   }, intervalMs);
   if (timer.unref) timer.unref();
@@ -168,13 +168,13 @@ function start(config, ctx) {
     // and forwards the WebSocket upgrade to this port. NEVER expose this port directly to the
     // internet — bind to a private interface or restrict via firewall.
     server = http.createServer();
-    console.log("[WSS-PUSH] TLS disabled (tls_enabled=false). Expect a reverse proxy to terminate TLS.");
+    console.log("[WSS] TLS disabled (tls_enabled=false). Expect a reverse proxy to terminate TLS.");
   } else {
     if (!fs.existsSync(config.ssl_cert)) {
-      throw new Error(`[WSS-PUSH] ssl_cert not found: ${config.ssl_cert}`);
+      throw new Error(`[WSS] ssl_cert not found: ${config.ssl_cert}`);
     }
     if (!fs.existsSync(config.ssl_key)) {
-      throw new Error(`[WSS-PUSH] ssl_key not found: ${config.ssl_key}`);
+      throw new Error(`[WSS] ssl_key not found: ${config.ssl_key}`);
     }
     server = https.createServer({
       cert: fs.readFileSync(config.ssl_cert),
@@ -187,7 +187,7 @@ function start(config, ctx) {
     noServer: true,
     maxPayload: MAX_PAYLOAD_BYTES,
     handleProtocols: (protocols /*, req */) => {
-      // protocols is Set<string> in ws 8+. Return the wire-level SUBPROTOCOL ("wss-push")
+      // protocols is Set<string> in ws 8+. Return the wire-level SUBPROTOCOL ("wss")
       // if offered; otherwise return null to accept without echoing a subprotocol header
       // (RFC 6455 allows this — useful for query-mode clients that don't send any).
       // Returning false would reject the upgrade outright.
@@ -252,7 +252,7 @@ function start(config, ctx) {
             try { ws.close(protocol.WS_CLOSE_CODES.UNSUPPORTED_PROTOCOL, "unsupported protocol"); } catch {}
           }
         } else {
-          console.log("[WSS-PUSH] handler error:", e && e.message ? e.message : e);
+          console.log("[WSS] handler error:", e && e.message ? e.message : e);
           sessionMod.sendJson(
             session,
             makeError(msg.id, ERROR_CODES.INTERNAL_ERROR, "internal error"),
@@ -268,14 +268,14 @@ function start(config, ctx) {
     });
 
     ws.on("error", (e) => {
-      console.log("[WSS-PUSH] socket error:", e && e.message ? e.message : e);
+      console.log("[WSS] socket error:", e && e.message ? e.message : e);
     });
   });
 
   server.listen(config.port, config.host || "0.0.0.0", () => {
     const scheme = config.tls_enabled === false ? "ws" : "wss";
     console.log(
-      `[WSS-PUSH] listening on ${scheme}://${config.host || "0.0.0.0"}:${config.port}${config.path}`,
+      `[WSS] listening on ${scheme}://${config.host || "0.0.0.0"}:${config.port}${config.path}`,
     );
   });
 

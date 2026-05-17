@@ -94,12 +94,12 @@ services:
       # Enable to expose DePIN methods (depin.*) on WSS. Requires the Neurai node
       # to be running with DePIN messaging service on depin_url.
       NEURAI_DEPIN_ENABLED: "false"
-      PROXY_WSS_PUSH_ENABLED: "true"
-      PROXY_WSS_PUSH_PORT: "19020"
-      PROXY_WSS_PUSH_PATH: "/push"
-      PROXY_WSS_PUSH_AUTH_TRANSPORT: "sec-websocket-protocol"
+      PROXY_WSS_ENABLED: "true"
+      PROXY_WSS_PORT: "19020"
+      PROXY_WSS_PATH: "/push"
+      PROXY_WSS_AUTH_TRANSPORT: "sec-websocket-protocol"
       # Testnet-only token. Replace with a real secret for any deployment reachable from the internet.
-      PROXY_WSS_PUSH_AUTH_TOKEN: "testnet-wss-push-token-do-not-use-in-production"
+      PROXY_WSS_AUTH_TOKEN: "testnet-wss-token-do-not-use-in-production"
       # Default deployment: behind a host reverse proxy that terminates TLS
       # (HestiaCP / nginx / Caddy / etc). The proxy listens on plain ws://
       # internally and the reverse proxy on the host adds TLS + LE renewal.
@@ -120,16 +120,16 @@ services:
       #   }
       #
       # To run the proxy with its own TLS (self-signed dev cert or LE files
-      # mounted from the host), set PROXY_WSS_PUSH_TLS_ENABLED=true.
-      # PROXY_WSS_PUSH_AUTOGEN_CERT=true generates a self-signed cert for dev.
-      PROXY_WSS_PUSH_TLS_ENABLED: "false"
-      PROXY_WSS_PUSH_AUTOGEN_CERT: "false"
-      PROXY_WSS_PUSH_ZMQ_SEQUENCE_ENABLED: "false"
+      # mounted from the host), set PROXY_WSS_TLS_ENABLED=true.
+      # PROXY_WSS_AUTOGEN_CERT=true generates a self-signed cert for dev.
+      PROXY_WSS_TLS_ENABLED: "false"
+      PROXY_WSS_AUTOGEN_CERT: "false"
+      PROXY_WSS_ZMQ_SEQUENCE_ENABLED: "false"
       # Optional local stats endpoint for ops/monitoring. When enabled, exposes
       # GET http://127.0.0.1:<port>/stats with sessions/subs/tip/zmq/queue.
       # Always loopback-only (unauthenticated); never publish the port.
-      PROXY_WSS_PUSH_STATS_ENABLED: "false"
-      PROXY_WSS_PUSH_STATS_PORT: "19021"
+      PROXY_WSS_STATS_ENABLED: "false"
+      PROXY_WSS_STATS_PORT: "19021"
       PROXY_ZMQ_ENDPOINT: "tcp://neuraid:28332"
 
     expose:
@@ -164,12 +164,13 @@ services:
       PROXY_PATH: /push
       # Match the rpc-proxy TLS setting above: "ws" when TLS_ENABLED=false, "wss" when true.
       PROXY_SCHEME: "ws"
-      PROXY_TOKEN: "testnet-wss-push-token-do-not-use-in-production"
+      PROXY_TOKEN: "testnet-wss-token-do-not-use-in-production"
       # Set TEST_ADDRESS to a valid Neurai testnet address to also exercise the happy-path subscribe.
-      # TEST_ADDRESS: ""
+      # PQ (ML-DSA-44) testnet address with XNA balance and PQTR asset holdings.
+      TEST_ADDRESS: "tnq1pxw7z3j5kkl8v6nez9mfstl4lzmuu7qu2fwwg4pl8qs52v5m4ev2qjut73j"
       # Set these to exercise the asset code paths against a real address holding assets.
-      # TEST_ASSET_ADDRESS: ""
-      # TEST_ASSET_NAME: ""
+      TEST_ASSET_ADDRESS: "tnq1pxw7z3j5kkl8v6nez9mfstl4lzmuu7qu2fwwg4pl8qs52v5m4ev2qjut73j"
+      TEST_ASSET_NAME: "PQTR"
       BURST_SIZE: "80"
       BURST_LIMIT: "50"
     depends_on:

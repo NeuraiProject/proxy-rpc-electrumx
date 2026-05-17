@@ -12,6 +12,7 @@ const READ_ONLY_METHODS = {
   "depin.check_validity": "checkdepinvalidity",
   "depin.list_holders": "listdepinholders",
   "depin.list_addresses": "listdepinaddresses",
+  "depin.list_pq_addresses": "listpqaddresses",
   "depin.get_pubkey": "getpubkey",
   "depin.pool_stats": "depinpoolstats",
   "depin.pool_pkey": "depinpoolpkey",

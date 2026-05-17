@@ -6,7 +6,7 @@ const PATH = process.env.PROXY_PATH || "/push";
 const SCHEME = process.env.PROXY_SCHEME || "wss";
 const TOKEN =
   process.env.PROXY_TOKEN ||
-  "testnet-wss-push-token-do-not-use-in-production";
+  "testnet-wss-token-do-not-use-in-production";
 const TEST_ADDRESS = process.env.TEST_ADDRESS || null;
 const TEST_ASSET_ADDRESS = process.env.TEST_ASSET_ADDRESS || null;
 const TEST_ASSET_NAME = process.env.TEST_ASSET_NAME || null;
@@ -14,8 +14,8 @@ const BURST_SIZE = Number(process.env.BURST_SIZE || 80);
 const BURST_LIMIT = Number(process.env.BURST_LIMIT || 50);
 
 const URL = `${SCHEME}://${HOST}:${PORT}${PATH}`;
-const SUBPROTOCOL = "wss-push";
-const PROTOCOL_VERSION = "wss-push/1";
+const SUBPROTOCOL = "wss";
+const PROTOCOL_VERSION = "wss/1";
 
 let passed = 0;
 let failed = 0;
@@ -192,7 +192,7 @@ async function testHelloUnsupportedProtocol() {
     const r = await rpc(res.ws, {
       id: 200,
       method: "hello",
-      params: { protocol: "wss-push/999" },
+      params: { protocol: "wss/999" },
     });
     if (r.error && r.error.code === 1001) ok("hello rejects unsupported protocol (1001)");
     else fail("hello unsupported protocol", JSON.stringify(r));
@@ -710,7 +710,7 @@ async function testWsPingRoundtrip() {
     await rpc(res.ws, {
       id: 880,
       method: "hello",
-      params: { protocol: "wss-push/1", client: "wss-test" },
+      params: { protocol: "wss/1", client: "wss-test" },
     });
     const got = await new Promise((resolve) => {
       const t = setTimeout(() => resolve(false), 3000);
@@ -734,7 +734,7 @@ async function testKeepaliveDoesntKillIdle() {
     await rpc(res.ws, {
       id: 881,
       method: "hello",
-      params: { protocol: "wss-push/1", client: "wss-test" },
+      params: { protocol: "wss/1", client: "wss-test" },
     });
     await delay(IDLE_MS);
     if (closed) return fail("keepalive idle", `connection closed during ${IDLE_MS}ms idle`);

@@ -1,6 +1,6 @@
 const process = require("process");
 const getConfig = require("./getConfig");
-const wssPush = require("./wss-push");
+const wss = require("./wss");
 
 process.on("uncaughtException", (error, origin) => {
   console.log("----- Uncaught exception -----");
@@ -18,16 +18,16 @@ process.on("unhandledRejection", (reason, promise) => {
 
 const config = getConfig();
 
-if (!config.wss_push || config.wss_push.enabled !== true) {
+if (!config.wss || config.wss.enabled !== true) {
   console.log(
-    "[WSS-PUSH] disabled in config (wss_push.enabled !== true). Nothing to start.",
+    "[WSS] disabled in config (wss.enabled !== true). Nothing to start.",
   );
   process.exit(0);
 }
 
 try {
-  wssPush.start(config.wss_push, config);
+  wss.start(config.wss, config);
 } catch (e) {
-  console.log("[WSS-PUSH] failed to start:", e && e.message ? e.message : e);
+  console.log("[WSS] failed to start:", e && e.message ? e.message : e);
   process.exit(1);
 }

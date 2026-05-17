@@ -4,7 +4,7 @@
   "description": "Neurai wallet services: live address push, tx broadcast, DePIN messaging over WebSocket. Backend for mobile and light wallets.",
   "main": "index.js",
   "dependencies": {
-    "@neuraiproject/neurai-rpc": "^0.4.6",
+    "@neuraiproject/neurai-rpc": "^0.4.7",
     "node-fetch": "^2.7.0",
     "p-queue": "6.6.2",
     "ws": "^8.18.0"

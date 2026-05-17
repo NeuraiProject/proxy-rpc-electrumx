@@ -12,7 +12,7 @@
 //   timeout fires        →  ws.terminate() (peer didn't pong in time)
 //   ws.on("close")       →  stop() — clear both timers
 //
-// Tunable via wss_push.keepalive_interval_ms / wss_push.keepalive_timeout_ms.
+// Tunable via wss.keepalive_interval_ms / wss.keepalive_timeout_ms.
 
 function start(ws, session, config) {
   const interval = config.keepalive_interval_ms || 25000;
@@ -48,7 +48,7 @@ function start(ws, session, config) {
       session._keepaliveTimeoutTimer = null;
       session.keepalive.timeouts += 1;
       console.log(
-        `[WSS-PUSH] session ${session.id} keepalive timeout (no pong in ${timeout}ms), terminating`,
+        `[WSS] session ${session.id} keepalive timeout (no pong in ${timeout}ms), terminating`,
       );
       try {
         ws.terminate();

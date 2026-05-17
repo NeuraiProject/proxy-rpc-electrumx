@@ -9,15 +9,15 @@ const {
   makeEvent,
 } = require("./protocol");
 
-test("VERSION is wss-push/1", () => {
-  expect(VERSION).toBe("wss-push/1");
-  expect(SUPPORTED_PROTOCOLS).toContain("wss-push/1");
+test("VERSION is wss/1", () => {
+  expect(VERSION).toBe("wss/1");
+  expect(SUPPORTED_PROTOCOLS).toContain("wss/1");
 });
 
 test("SUBPROTOCOL is a valid HTTP token (RFC 7230)", () => {
   // RFC 7230 §3.2.6 tchar set; no "/", no whitespace, etc.
   const httpTokenRegex = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
-  expect(SUBPROTOCOL).toBe("wss-push");
+  expect(SUBPROTOCOL).toBe("wss");
   expect(SUBPROTOCOL).toMatch(httpTokenRegex);
 });
 
@@ -55,12 +55,12 @@ test("makeResponse shape", () => {
 
 test("makeError shape with extras", () => {
   const e = makeError(3, ERROR_CODES.UNSUPPORTED_PROTOCOL, "nope", {
-    supported: ["wss-push/1"],
+    supported: ["wss/1"],
   });
   expect(e.id).toBe(3);
   expect(e.error.code).toBe(ERROR_CODES.UNSUPPORTED_PROTOCOL);
   expect(e.error.message).toBe("nope");
-  expect(e.error.supported).toEqual(["wss-push/1"]);
+  expect(e.error.supported).toEqual(["wss/1"]);
 });
 
 test("makeError accepts null id for spontaneous errors", () => {
