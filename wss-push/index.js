@@ -4,6 +4,7 @@ const subscriptions = require("./subscriptions");
 const rpc = require("./rpc");
 const chainState = require("./chain-state");
 const nodeHealth = require("./node-health");
+const zmqWatcher = require("./zmq-watcher");
 
 const VALID_AUTH_TRANSPORTS = ["sec-websocket-protocol", "query", "both"];
 
@@ -59,6 +60,7 @@ function fillDefaults(cfg) {
     max_new_connections_per_second: cfg.max_new_connections_per_second || 50,
     history_page_limit: cfg.history_page_limit || 100,
     utxo_page_limit: cfg.utxo_page_limit || 1000,
+    bulk_subscribe_limit: cfg.bulk_subscribe_limit || 200,
     reorg_invalidate_depth: cfg.reorg_invalidate_depth || 60,
     keepalive_interval_ms: cfg.keepalive_interval_ms || 25000,
     keepalive_timeout_ms: cfg.keepalive_timeout_ms || 10000,
@@ -66,6 +68,7 @@ function fillDefaults(cfg) {
     zmq_enabled: cfg.zmq_enabled === true,
     zmq_endpoint: cfg.zmq_endpoint || null,
     zmq_sequence_enabled: cfg.zmq_sequence_enabled === true,
+    zmq_watchdog_ms: cfg.zmq_watchdog_ms || 5 * 60 * 1000,
     concurrency: cfg.concurrency || 4,
   };
 }
@@ -91,6 +94,7 @@ function getStats() {
     queue: rpc.getQueueStats(),
     chain: chainState.getStats(),
     node: nodeHealth.getStatus(),
+    zmq: zmqWatcher.getStatus(),
   };
 }
 

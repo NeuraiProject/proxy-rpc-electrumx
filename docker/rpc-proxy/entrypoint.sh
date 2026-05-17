@@ -17,6 +17,7 @@ set -eu
 : "${PROXY_WSS_PUSH_AUTH_TOKEN:=change-this-token}"
 : "${PROXY_WSS_PUSH_AUTOGEN_CERT:=false}"
 : "${PROXY_WSS_PUSH_ZMQ_SEQUENCE_ENABLED:=false}"
+: "${PROXY_WSS_PUSH_ZMQ_WATCHDOG_MS:=300000}"
 : "${PROXY_WSS_PUSH_POLL_INTERVAL_MS:=5000}"
 : "${PROXY_WSS_PUSH_MEMPOOL_INTERVAL_MS:=3000}"
 : "${PROXY_WSS_PUSH_MAX_SESSIONS:=5000}"
@@ -24,6 +25,7 @@ set -eu
 : "${PROXY_WSS_PUSH_MAX_NEW_CONNECTIONS_PER_SECOND:=50}"
 : "${PROXY_WSS_PUSH_HISTORY_PAGE_LIMIT:=100}"
 : "${PROXY_WSS_PUSH_UTXO_PAGE_LIMIT:=1000}"
+: "${PROXY_WSS_PUSH_BULK_SUBSCRIBE_LIMIT:=200}"
 : "${PROXY_WSS_PUSH_REORG_INVALIDATE_DEPTH:=60}"
 : "${PROXY_WSS_PUSH_KEEPALIVE_INTERVAL_MS:=25000}"
 : "${PROXY_WSS_PUSH_KEEPALIVE_TIMEOUT_MS:=10000}"
@@ -58,6 +60,7 @@ cat > /app/config.json <<EOF
     "ssl_key": "${PROXY_WSS_PUSH_SSL_KEY}",
     "zmq_enabled": true,
     "zmq_sequence_enabled": ${PROXY_WSS_PUSH_ZMQ_SEQUENCE_ENABLED},
+    "zmq_watchdog_ms": ${PROXY_WSS_PUSH_ZMQ_WATCHDOG_MS},
     "auth_transport": "${PROXY_WSS_PUSH_AUTH_TRANSPORT}",
     "auth_token": "${PROXY_WSS_PUSH_AUTH_TOKEN}",
     "poll_interval_ms": ${PROXY_WSS_PUSH_POLL_INTERVAL_MS},
@@ -67,6 +70,7 @@ cat > /app/config.json <<EOF
     "max_new_connections_per_second": ${PROXY_WSS_PUSH_MAX_NEW_CONNECTIONS_PER_SECOND},
     "history_page_limit": ${PROXY_WSS_PUSH_HISTORY_PAGE_LIMIT},
     "utxo_page_limit": ${PROXY_WSS_PUSH_UTXO_PAGE_LIMIT},
+    "bulk_subscribe_limit": ${PROXY_WSS_PUSH_BULK_SUBSCRIBE_LIMIT},
     "reorg_invalidate_depth": ${PROXY_WSS_PUSH_REORG_INVALIDATE_DEPTH},
     "keepalive_interval_ms": ${PROXY_WSS_PUSH_KEEPALIVE_INTERVAL_MS},
     "keepalive_timeout_ms": ${PROXY_WSS_PUSH_KEEPALIVE_TIMEOUT_MS},

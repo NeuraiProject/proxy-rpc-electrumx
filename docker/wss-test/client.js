@@ -506,6 +506,90 @@ async function testDepinUnknownMethod() {
   });
 }
 
+async function testBulkSubscribeMixed() {
+  await withSession(async (ws) => {
+    const valid = TEST_ADDRESS || null;
+    const addresses = [
+      valid || "tnq1pinvalid_skip",
+      "not-an-address-at-all",
+      "",
+    ];
+    const r = await rpc(ws, {
+      id: 900,
+      method: "address.subscribe.bulk",
+      params: { addresses },
+    });
+    if (!r.result || !Array.isArray(r.result.results))
+      return fail("bulk subscribe shape", JSON.stringify(r));
+    const res = r.result.results;
+    if (res.length !== addresses.length)
+      return fail("bulk subscribe count", `expected ${addresses.length}, got ${res.length}`);
+    if (!res[1].error || res[1].error.code !== 1003)
+      return fail("bulk subscribe: invalid entry should error", JSON.stringify(res[1]));
+    if (!res[2].error || res[2].error.code !== 1003)
+      return fail("bulk subscribe: empty entry should error", JSON.stringify(res[2]));
+    if (valid) {
+      if (res[0].error)
+        return fail("bulk subscribe: valid entry errored", JSON.stringify(res[0]));
+      if (typeof res[0].status !== "string")
+        return fail("bulk subscribe: valid missing status", JSON.stringify(res[0]));
+    }
+    ok(`address.subscribe.bulk returns per-entry results (errors at indices 1,2)`);
+  });
+}
+
+async function testBulkSubscribeEmpty() {
+  await withSession(async (ws) => {
+    const r = await rpc(ws, {
+      id: 901,
+      method: "address.subscribe.bulk",
+      params: { addresses: [] },
+    });
+    if (r.result && Array.isArray(r.result.results) && r.result.results.length === 0)
+      ok("address.subscribe.bulk with empty array returns empty results");
+    else fail("bulk subscribe empty", JSON.stringify(r));
+  });
+}
+
+async function testBulkSubscribeRequiresArray() {
+  await withSession(async (ws) => {
+    const r = await rpc(ws, {
+      id: 902,
+      method: "address.subscribe.bulk",
+      params: {},
+    });
+    if (r.error && r.error.code === 1003)
+      ok("address.subscribe.bulk requires addresses array (1003)");
+    else fail("bulk subscribe missing array", JSON.stringify(r));
+  });
+}
+
+async function testBulkUnsubscribe() {
+  await withSession(async (ws) => {
+    // First subscribe a couple of addresses so we have something to unsub
+    const addrs = TEST_ADDRESS ? [TEST_ADDRESS] : [];
+    if (addrs.length > 0) {
+      await rpc(ws, {
+        id: 910,
+        method: "address.subscribe.bulk",
+        params: { addresses: addrs },
+      });
+    }
+    const r = await rpc(ws, {
+      id: 911,
+      method: "address.unsubscribe.bulk",
+      params: { addresses: [...addrs, "never-subscribed", ""] },
+    });
+    if (!r.result || typeof r.result.count !== "number")
+      return fail("bulk unsubscribe shape", JSON.stringify(r));
+    // count should match the number of non-empty strings we passed
+    const expected = addrs.length + 1;
+    if (r.result.count !== expected)
+      return fail("bulk unsubscribe count", `expected ${expected}, got ${r.result.count}`);
+    ok(`address.unsubscribe.bulk processed ${r.result.count} entries`);
+  });
+}
+
 async function testWsPingRoundtrip() {
   const res = await connect();
   if (res.status !== "open") return fail("ws ping: open", `status=${res.status}`);
@@ -607,6 +691,10 @@ async function testBurst() {
   await testGetStateUtxoCursor();
   await testGetStateUtxoLimitAll();
   await testGetStateInvalidUtxoCursor();
+  await testBulkSubscribeRequiresArray();
+  await testBulkSubscribeEmpty();
+  await testBulkSubscribeMixed();
+  await testBulkUnsubscribe();
   await testWsPingRoundtrip();
   await testKeepaliveDoesntKillIdle();
   await testBurst();

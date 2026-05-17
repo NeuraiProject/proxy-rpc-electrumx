@@ -17,6 +17,7 @@
     "max_new_connections_per_second": 50,
     "history_page_limit": 100,
     "utxo_page_limit": 1000,
+    "bulk_subscribe_limit": 200,
     "reorg_invalidate_depth": 60,
     "keepalive_interval_ms": 25000,
     "keepalive_timeout_ms": 10000,
@@ -25,6 +26,7 @@
     "zmq_enabled": true,
     "zmq_endpoint": "tcp://neuraid:28332",
     "zmq_sequence_enabled": false,
+    "zmq_watchdog_ms": 300000,
     "poll_interval_ms": 5000,
     "mempool_interval_ms": 3000
   },

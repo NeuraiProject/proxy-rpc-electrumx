@@ -42,8 +42,7 @@ that speaks the same protocol.
 - Auth, rate limit, session limits, cert hot-reload, block-index warmup
 
 Pending: Fase 5 — assets (`assets: true | string[]` filter on subscribe +
-get_state). Optional improvements: per-block "candidate addresses" refresh,
-ZMQ reconnect resilience, bulk subscribe.
+get_state). Optional improvements: per-block "candidate addresses" refresh.
 
 ## Protocol overview
 
@@ -83,7 +82,9 @@ Application-level version (reported in `hello`): `wss-push/1`.
 | `hello` | `{client, version, network, protocol}` | server info + tip + sync state | no |
 | `ping` | none | `"pong"` | no |
 | `address.subscribe` | `{address}` | `{address, status, balance, height}` | **yes** |
+| `address.subscribe.bulk` | `{addresses: [...]}` | `{results: [{address, status?, balance?, height?, error?}]}` | **yes** |
 | `address.unsubscribe` | `{address}` | `true` | no |
+| `address.unsubscribe.bulk` | `{addresses: [...]}` | `{count}` | no |
 | `address.get_state` | `{address, include_history?, include_utxos?, cursor?, limit?, utxo_cursor?, utxo_limit?, asset?, from_height?}` | `{address, status, balance, mempool, history, utxos, page, utxo_page}` | **yes** |
 | `tx.broadcast` | `{rawtx}` | `{txid}` | **yes** |
 | `depin.check_validity` | `[asset]` or `{args:[asset]}` | RPC result | **yes** |
@@ -161,6 +162,61 @@ above this clamp silently to the cap unless `utxo_limit: 0`.
 
 The `asset` field is reserved for Fase 5 and currently must be `null` or
 `false` (native XNA only).
+
+### Bulk subscribe for HD wallets
+
+HD wallets derive many addresses (one per index) and need to subscribe them
+all at session open. `address.subscribe.bulk` saves the round-trip cost of
+issuing N individual subscribes:
+
+```json
+// request
+{ "id": 10, "method": "address.subscribe.bulk",
+  "params": { "addresses": ["addr1", "addr2", "addr3"] } }
+
+// response — per-entry results, in input order
+{ "id": 10, "result": { "results": [
+    { "address": "addr1", "status": "ab12...", "balance": {...}, "height": 75900 },
+    { "address": "addr2", "error": { "code": 1003, "message": "invalid address" } },
+    { "address": "addr3", "status": "cd34...", "balance": {...}, "height": 75900 }
+] } }
+```
+
+Per-entry errors do not abort the batch. The batch as a whole fails (1003)
+if `addresses` is missing/non-array, or (1006) if it would push the session
+over `max_subscriptions_per_session`. The max batch size defaults to **200**
+(configurable via `wss_push.bulk_subscribe_limit`).
+
+`address.unsubscribe.bulk({addresses: [...]})` symmetrically removes many.
+It silently ignores empty/non-string entries and returns `{count}`.
+
+### Resilient ZMQ subscriber
+
+The ZMQ subscriber runs in a reconnecting loop with exponential backoff
+(1s → 2s → 4s → ... → 30s capped). It survives:
+
+- **Neuraid restarts** — the publisher comes back, the next reconnect
+  attempt re-establishes the subscription.
+- **Socket teardown / iterator errors** — the outer loop catches and retries.
+- **Silent disconnects (NAT teardown, idle TCP)** — a watchdog (default
+  5 min, `zmq_watchdog_ms`) recycles the socket if no message arrives for
+  too long, forcing a fresh subscription.
+
+Backoff resets to 1s after any connection that stayed up for >30s.
+
+During reconnect gaps the polling fallback continues to detect new tips and
+mempool changes, so the wallet still gets `chain.tip` and `address.changed`
+events — just with the polling-interval latency (default 5s for blocks, 3s
+for mempool) instead of ZMQ's near-real-time.
+
+ZMQ status is exposed via `wssPush.getStats().zmq`:
+
+```json
+{ "connected": true, "attempts": 3,
+  "last_message_at": 1734568914123,
+  "last_connected_at": 1734568900456,
+  "last_disconnected_at": 1734568700123 }
+```
 
 ### WS-level keepalive
 
@@ -364,7 +420,7 @@ self-signed cert in-container at startup.
 │   ├── node-health.js        # getblockchaininfo poller + node.synced/syncing
 │   ├── chain-state.js        # tip + Map<height,hash> + lastStatus per address
 │   ├── chain-events.js       # onBlock/onRawTx orchestrator + warmup + reorg detection
-│   ├── zmq-watcher.js        # ZMQ subscriber (optional `zeromq` dep)
+│   ├── zmq-watcher.js        # resilient ZMQ subscriber (backoff + watchdog)
 │   ├── poller.js             # bestblockhash + mempool polling fallback
 │   └── prevout-cache.js      # bounded outpoint → address LRU for input resolution
 └── docker/

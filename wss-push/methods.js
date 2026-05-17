@@ -146,6 +146,109 @@ const handlers = {
     return true;
   },
 
+  // Bulk variants for HD wallets that derive many addresses up front.
+  // Errors are reported per-address in the response so one bad entry doesn't
+  // poison the batch. The whole call is gated by requireSynced like the
+  // single-address variant.
+  "address.subscribe.bulk": async (session, params, ctx) => {
+    requireHello(session);
+    requireSynced();
+    if (!params || !Array.isArray(params.addresses)) {
+      throw new MethodError(
+        ERROR_CODES.INVALID_PARAMS,
+        "addresses array required",
+      );
+    }
+    const addresses = params.addresses;
+    if (addresses.length === 0) {
+      return { results: [] };
+    }
+    const MAX_BATCH = ctx.config.bulk_subscribe_limit || 200;
+    if (addresses.length > MAX_BATCH) {
+      throw new MethodError(
+        ERROR_CODES.INVALID_PARAMS,
+        `batch too large (got ${addresses.length}, max ${MAX_BATCH})`,
+      );
+    }
+    if (session.subs.size + addresses.length > ctx.config.max_subscriptions_per_session) {
+      throw new MethodError(
+        ERROR_CODES.TOO_MANY_SUBS,
+        "batch would exceed max subscriptions per session",
+      );
+    }
+
+    // Fetch the chain tip once for the whole batch instead of per-address.
+    let height = null;
+    if (ctx.config.send_initial_state) {
+      try {
+        const h = await callRPC("getblockcount", []);
+        if (typeof h === "number") height = h;
+      } catch {
+        // best-effort
+      }
+    }
+
+    const results = await Promise.all(
+      addresses.map(async (address) => {
+        if (typeof address !== "string" || address.length === 0) {
+          return {
+            address: typeof address === "string" ? address : null,
+            error: { code: ERROR_CODES.INVALID_PARAMS, message: "invalid address" },
+          };
+        }
+        try {
+          const val = await callRPC("validateaddress", [address]).catch(() => null);
+          if (!val || val.isvalid !== true) {
+            return {
+              address,
+              error: { code: ERROR_CODES.INVALID_PARAMS, message: "invalid address" },
+            };
+          }
+          subscriptions.subscribe(address, session);
+          if (!ctx.config.send_initial_state) {
+            return { address };
+          }
+          const state = await fetchAddressState(address);
+          chainState.setLastStatus(address, state.status);
+          return {
+            address,
+            status: state.status,
+            balance: state.balance,
+            height,
+          };
+        } catch (e) {
+          return {
+            address,
+            error: {
+              code: ERROR_CODES.INTERNAL_ERROR,
+              message: e && e.message ? e.message : "subscribe failed",
+            },
+          };
+        }
+      }),
+    );
+
+    return { results };
+  },
+
+  "address.unsubscribe.bulk": async (session, params) => {
+    requireHello(session);
+    if (!params || !Array.isArray(params.addresses)) {
+      throw new MethodError(
+        ERROR_CODES.INVALID_PARAMS,
+        "addresses array required",
+      );
+    }
+    let count = 0;
+    for (const address of params.addresses) {
+      if (typeof address === "string" && address.length > 0) {
+        subscriptions.unsubscribe(address, session);
+        count++;
+      }
+    }
+    return { count };
+  },
+
   "address.get_state": async (session, params, ctx) => {
     requireHello(session);
     requireSynced();
