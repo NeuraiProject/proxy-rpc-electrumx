@@ -357,10 +357,8 @@ const handlers = {
     // Asset filter: accepts the same shapes as address.subscribe.
     //   undefined/null/false → native only (default)
     //   true → all assets the address has
-    //   string[] → only these asset names
-    // Note: history (deltas) currently stays native-only because Neurai's
-    // getaddressdeltas with `assetName: "*"` returns empty. Per-asset
-    // history queries are a follow-up. `asset` is kept as a legacy alias.
+    //   string[] → only these asset names (native always included)
+    // `asset` is kept as a legacy alias for `assets`.
     const assetsFilter = parseAssetsFilter(
       params.assets !== undefined ? params.assets : params.asset,
     );
@@ -389,9 +387,9 @@ const handlers = {
     }
     if (cursorParsed === null) {
       if (typeof params.from_height === "number" && params.from_height >= 0) {
-        cursorParsed = { height: Math.floor(params.from_height), tx_index: 0 };
+        cursorParsed = { height: Math.floor(params.from_height), tx_index: 0, asset: "" };
       } else {
-        cursorParsed = { height: 0, tx_index: 0 };
+        cursorParsed = { height: 0, tx_index: 0, asset: "" };
       }
     }
 
@@ -413,11 +411,17 @@ const handlers = {
       // useful for any real wallet so just clamp the lower bound to 1.
       const start = Math.max(1, cursorParsed.height);
       const end = Math.max(start, tip.height || start);
+
+      // When the caller asked for any asset data (kind != "none"), use the
+      // wildcard call — it returns native XNA deltas AND non-native asset
+      // deltas in one shot. Otherwise stick to the cheaper native-only call.
+      const rpcParams =
+        assetsFilter.kind === "none"
+          ? { addresses: [address], start, end }
+          : { addresses: [address], start, end, assetName: "*" };
       let deltas = [];
       try {
-        deltas = await callRPC("getaddressdeltas", [
-          { addresses: [address], start, end },
-        ]);
+        deltas = await callRPC("getaddressdeltas", [rpcParams]);
         if (!Array.isArray(deltas)) deltas = [];
       } catch (e) {
         console.log(
@@ -427,37 +431,52 @@ const handlers = {
         deltas = [];
       }
 
-      // Aggregate per (height, blockindex, txid) so a tx with multiple outputs
-      // to the same address becomes a single history entry with the net delta.
+      // For list-mode, keep XNA + only the whitelisted asset names.
+      if (assetsFilter.kind === "list") {
+        deltas = deltas.filter((d) => {
+          const name = d.assetName || NATIVE_ASSET;
+          return name === NATIVE_ASSET || assetsFilter.names.has(name);
+        });
+      }
+
+      // Aggregate per (height, blockindex, txid, asset). One row per asset
+      // within a tx so a swap (XNA out + FOO in) produces two history entries.
       const agg = new Map();
-      for (const d of Array.isArray(deltas) ? deltas : []) {
+      for (const d of deltas) {
         if (typeof d.height !== "number" || typeof d.blockindex !== "number") continue;
-        const key = `${d.height}:${d.blockindex}:${d.txid}`;
+        const asset = d.assetName || NATIVE_ASSET;
+        const key = `${d.height}:${d.blockindex}:${d.txid}:${asset}`;
         const e = agg.get(key) || {
           height: d.height,
           tx_index: d.blockindex,
           txid: d.txid,
+          asset,
           satoshis: 0,
         };
         e.satoshis += typeof d.satoshis === "number" ? d.satoshis : 0;
         agg.set(key, e);
       }
       let sorted = [...agg.values()].sort(
-        (a, b) => a.height - b.height || a.tx_index - b.tx_index,
+        (a, b) =>
+          a.height - b.height ||
+          a.tx_index - b.tx_index ||
+          (a.asset < b.asset ? -1 : a.asset > b.asset ? 1 : 0),
       );
 
       // Skip everything strictly before the cursor.
       sorted = sorted.filter((e) => {
         if (e.height > cursorParsed.height) return true;
-        if (e.height === cursorParsed.height && e.tx_index >= cursorParsed.tx_index) return true;
-        return false;
+        if (e.height < cursorParsed.height) return false;
+        if (e.tx_index > cursorParsed.tx_index) return true;
+        if (e.tx_index < cursorParsed.tx_index) return false;
+        return e.asset >= cursorParsed.asset;
       });
 
       history = sorted.slice(0, limit);
       if (sorted.length > limit) {
         const next = sorted[limit];
         pageInfo.has_more = true;
-        pageInfo.next_cursor = cursor.encode(next.height, next.tx_index);
+        pageInfo.next_cursor = cursor.encode(next.height, next.tx_index, next.asset);
       }
     }
 

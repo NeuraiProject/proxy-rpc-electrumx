@@ -32,8 +32,8 @@ that speaks the same protocol.
 - `hello`, `ping`
 - `address.subscribe`, `address.unsubscribe`, `address.subscribe.bulk`,
   `address.unsubscribe.bulk` (with optional `assets` filter)
-- `address.get_state` with composite cursor pagination (history + UTXOs)
-  and assets projection
+- `address.get_state` with composite cursor pagination (history + UTXOs),
+  assets projection, and per-asset history rows
 - `tx.broadcast`
 - `depin.*` — read-only and signed methods (with challenge cache)
 - Push events: `chain.tip`, `chain.reorg`, `address.changed` (with
@@ -43,10 +43,7 @@ that speaks the same protocol.
 - WS-level ping/pong keepalive (configurable, default 25s interval / 10s timeout)
 - Auth, rate limit, session limits, cert hot-reload, block-index warmup
 
-Pending: per-asset history pagination via deltas (Neurai's
-`getaddressdeltas` with `assetName: "*"` returns empty; needs per-asset
-calls). Other optional improvements: per-block "candidate addresses"
-refresh.
+Pending: per-block "candidate addresses" refresh (optional improvement).
 
 ## Protocol overview
 
@@ -114,7 +111,7 @@ are therefore not affected by Neurai chain sync state.
 
 `address.get_state` returns the full per-address snapshot the wallet needs
 to render a screen: balance, mempool entries, recent history, and UTXOs.
-History is **always paginated** using a composite opaque cursor (`height:tx_index`):
+History is **always paginated** using a composite opaque cursor (`height:tx_index:asset`):
 
 ```json
 // request
@@ -133,23 +130,29 @@ History is **always paginated** using a composite opaque cursor (`height:tx_inde
     "status": "d9385809c15265e9...",
     "balance": { "confirmed": 500000000000, "unconfirmed": 0 },
     "mempool": [ { "txid": "...", "satoshis": 100000, "prev_txid": null, "prev_vout": null } ],
-    "history": [ { "txid": "471e4d...", "height": 75841, "tx_index": 1, "satoshis": 500000000000 } ],
+    "history": [ { "txid": "471e4d...", "height": 75841, "tx_index": 1, "asset": "XNA", "satoshis": 500000000000 } ],
     "utxos":   [ { "txid": "...", "vout": 0, "satoshis": 500000000000, "height": 75841 } ],
-    "page":      { "cursor": null, "limit": 100, "has_more": true, "next_cursor": "75900:3" },
+    "page":      { "cursor": null, "limit": 100, "has_more": true, "next_cursor": "75900:3:XNA" },
     "utxo_page": { "cursor": null, "limit": 100, "has_more": false, "next_cursor": null }
   } }
 ```
 
-To fetch the next history page, the wallet sends `params.cursor: "75900:3"`
+To fetch the next history page, the wallet sends `params.cursor: "75900:3:XNA"`
 (the exact value returned in `next_cursor`). The cursor is opaque — the
-client must not parse or construct it. `include_history` and `include_utxos`
-default to `true`; set them to `false` for a cheaper response when the
-wallet only needs the balance + status. `from_height` is accepted as a
-shortcut for the first page only — subsequent pages must use `next_cursor`.
+client must not parse or construct it. Legacy two-part cursors
+(`"height:tx_index"`) issued before per-asset history was added are still
+accepted as a one-time compatibility shim. `include_history` and
+`include_utxos` default to `true`; set them to `false` for a cheaper
+response when the wallet only needs the balance + status. `from_height` is
+accepted as a shortcut for the first page only — subsequent pages must use
+`next_cursor`.
 
-History entries aggregate per (height, tx_index, txid): if a single tx has
-multiple outputs paying the same address, they collapse into one entry
-with the summed satoshis.
+History entries aggregate per (height, tx_index, txid, asset). Every entry
+has an `asset` field (`"XNA"` for native). If a single tx pays the same
+address multiple times in the same asset, those outputs collapse into one
+entry with the summed satoshis. If a tx touches multiple assets (e.g. a
+swap of XNA → TRON), it produces one entry per asset — they share the
+same `txid` but appear as distinct history rows.
 
 UTXOs are paginated independently from history. By default `utxo_limit` is
 **100** to keep mobile payloads sane — an address with thousands of UTXOs
@@ -204,10 +207,18 @@ Key points:
 - **Ownership tokens** (`NAME!`) are returned as separate entries from the
   underlying asset (`NAME`) — they're distinct on Neurai. The wallet can
   show or hide them as needed.
-- **Asset history** is currently native-only in `address.get_state`. Neurai's
-  `getaddressdeltas` with `assetName: "*"` returns empty, so per-asset
-  history requires explicit per-asset queries (a follow-up improvement).
-  Asset balances and UTXOs work fine.
+- **Asset history** in `address.get_state` follows the `assets` filter:
+  - `assets: false` (default) → history contains only XNA rows.
+  - `assets: true` → history mixes XNA and every asset row the address
+    received, sorted by `(height, tx_index, asset)`. One row per asset
+    per tx (see the aggregation note above).
+  - `assets: ["FOO"]` → history contains XNA plus only the listed asset
+    names. XNA is always included so wallets can render the native ledger
+    alongside the filtered tokens.
+
+  Requires a Neurai node built with the `getaddressdeltas` wildcard fix
+  (`assetName: "*"`). Older nodes return an empty asset history; native
+  history still works on those.
 
 ### Bulk subscribe for HD wallets
 
