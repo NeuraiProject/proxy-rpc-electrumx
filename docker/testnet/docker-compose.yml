@@ -75,9 +75,10 @@ services:
 
   rpc-proxy:
     build:
-      # Use repo root as context so we can COPY the local working tree.
-      context: ../..
-      dockerfile: docker/rpc-proxy/Dockerfile
+      # Image is built by cloning neurai-wallet-services from GitHub, so the
+      # build context only needs the rpc-proxy/ folder (entrypoint.sh).
+      context: ../rpc-proxy
+      dockerfile: Dockerfile
     restart: unless-stopped
 
     logging:
