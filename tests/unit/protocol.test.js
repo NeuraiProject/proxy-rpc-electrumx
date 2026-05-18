@@ -7,7 +7,7 @@ const {
   makeResponse,
   makeError,
   makeEvent,
-} = require("./protocol");
+} = require("../../wss/protocol");
 
 test("VERSION is wss/1", () => {
   expect(VERSION).toBe("wss/1");

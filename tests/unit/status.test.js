@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { statusString, statusHash } = require("./status");
+const { statusString, statusHash } = require("../../wss/status");
 
 test("empty state produces stable string", () => {
   const s = statusString({});

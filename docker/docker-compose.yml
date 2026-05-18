@@ -149,35 +149,6 @@ services:
       neuraid:
         condition: service_healthy
 
-  wss-test:
-    # Fase 1 acceptance test client. Runs under the `test` profile so it
-    # does not start with the regular `up`. Usage:
-    #   docker compose --profile test run --rm wss-test
-    build:
-      context: ./wss-test
-      dockerfile: Dockerfile
-    profiles:
-      - test
-    environment:
-      PROXY_HOST: rpc-proxy
-      PROXY_PORT: "19020"
-      PROXY_PATH: /push
-      # Match the rpc-proxy TLS setting above: "ws" when TLS_ENABLED=false, "wss" when true.
-      PROXY_SCHEME: "ws"
-      PROXY_TOKEN: "testnet-wss-token-do-not-use-in-production"
-      # Set TEST_ADDRESS to a valid Neurai testnet address to also exercise the happy-path subscribe.
-      # PQ (ML-DSA-44) testnet address with XNA balance and PQTR asset holdings.
-      TEST_ADDRESS: "tnq1pxw7z3j5kkl8v6nez9mfstl4lzmuu7qu2fwwg4pl8qs52v5m4ev2qjut73j"
-      # Set these to exercise the asset code paths against a real address holding assets.
-      TEST_ASSET_ADDRESS: "tnq1pxw7z3j5kkl8v6nez9mfstl4lzmuu7qu2fwwg4pl8qs52v5m4ev2qjut73j"
-      TEST_ASSET_NAME: "PQTR"
-      BURST_SIZE: "80"
-      BURST_LIMIT: "50"
-    depends_on:
-      - rpc-proxy
-    networks:
-      - neurai_net
-
 volumes:
   neurai_data:
     driver: local

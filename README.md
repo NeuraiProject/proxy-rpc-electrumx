@@ -23,7 +23,7 @@ that speaks the same protocol.
   that depend on a synced chain and emits `node.synced` / `node.syncing`
   on transitions.
 - DePIN method handlers — both read-only RPCs and the signed messaging flow.
-- Docker setup for testnet + an E2E test client.
+- Docker setup for the testnet service stack, with tests kept under `tests/`.
 
 ## Status
 
@@ -403,15 +403,15 @@ Only `GET /stats` is served; other paths return 404 and non-GET returns 405.
 
 ## Running locally (docker, testnet)
 
-The docker stack runs a Neurai testnet node, the wss server, and an
-E2E test client.
+The docker stack runs a Neurai testnet node and the wss server. Test-only
+assets live under `tests/`.
 
 ```bash
 # Build and start
 docker compose -f docker/docker-compose.yml up -d --build
 
 # Run the Phase 1 + 2 acceptance suite
-docker compose -f docker/docker-compose.yml --profile test run --rm wss-test
+docker compose -f docker/docker-compose.yml -f tests/docker-compose.yml --profile test run --rm wss-test
 ```
 
 Defaults:
@@ -513,11 +513,14 @@ self-signed cert in-container at startup.
 │   ├── zmq-watcher.js        # resilient ZMQ subscriber (backoff + watchdog)
 │   ├── poller.js             # bestblockhash + mempool polling fallback
 │   └── prevout-cache.js      # bounded outpoint → address LRU for input resolution
-└── docker/
-    ├── docker-compose.yml    # testnet node + proxy + test client
-    ├── rpc-proxy/            # proxy image (local build)
-    ├── wss-test/             # E2E test client (test profile)
-    └── node/                 # Neurai testnet node image
+├── docker/
+│   ├── docker-compose.yml    # testnet node + proxy
+│   ├── rpc-proxy/            # proxy image (local build)
+│   └── node/                 # Neurai testnet node image
+└── tests/
+    ├── docker-compose.yml    # E2E test compose overlay
+    ├── unit/                  # Jest unit tests
+    └── wss-test/             # E2E test client
 ```
 
 ## Tests
@@ -525,7 +528,7 @@ self-signed cert in-container at startup.
 ```bash
 npm install
 npm test                                                          # unit tests
-docker compose -f docker/docker-compose.yml --profile test run --rm wss-test   # E2E
+docker compose -f docker/docker-compose.yml -f tests/docker-compose.yml --profile test run --rm wss-test   # E2E
 ```
 
 ## License

@@ -1,4 +1,4 @@
-const cursor = require("./cursor");
+const cursor = require("../../wss/cursor");
 
 test("encode produces 'height:tx_index:asset'", () => {
   expect(cursor.encode(123, 5, "XNA")).toBe("123:5:XNA");
