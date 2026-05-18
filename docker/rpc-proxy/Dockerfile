@@ -20,6 +20,6 @@ COPY . ./
 COPY docker/rpc-proxy/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-EXPOSE 19999 19020
+EXPOSE 19020
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
